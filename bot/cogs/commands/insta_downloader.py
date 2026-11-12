@@ -28,7 +28,9 @@ from media_cookies import (
 from media_quality import (
     compress_to_budget,
     download_fitting_video,
+    download_youtube_video,
     is_valid_video,
+    source_cap,
     upload_budget,
 )
 
@@ -56,6 +58,7 @@ class InstaDownloader(commands.Cog):
         self._recent_posts = {}
         self._duplicate_window = 120
         self._last_cobalt_error = None
+        self._status_label = "Downloading"
 
     @property
     def mongo(self):
@@ -402,11 +405,20 @@ class InstaDownloader(commands.Cog):
             return None
 
     def _ytdlp_download(self, url, upload_limit, source):
-        """Cookie-aware yt-dlp fallback for when Cobalt is challenged."""
+        """Download with yt-dlp, using owner cookies when they are worth trying."""
         try:
             import yt_dlp
         except ImportError:
             return None, "Media Downloader is missing the `yt-dlp` dependency."
+
+        # The pinned provider plugin defaults to a 20-second token request.
+        # A cold BotGuard mint can take longer on Railway, so allow it to wait
+        # for the same local session server Cobalt uses.
+        try:
+            from yt_dlp_plugins.extractor.getpot_bgutil import BgUtilPTPBase
+            BgUtilPTPBase._GETPOT_TIMEOUT = max(BgUtilPTPBase._GETPOT_TIMEOUT, 60.0)
+        except Exception:
+            pass
 
         base = {
             "outtmpl": os.path.join(
@@ -421,13 +433,19 @@ class InstaDownloader(commands.Cog):
             "no_warnings": True,
             "noplaylist": True,
             "max_filesize": upload_limit,
-            "socket_timeout": 30,
-            "retries": 5,
-            "fragment_retries": 5,
-            "extractor_retries": 3,
+            "overwrites": True,
+            "socket_timeout": 20,
+            "retries": 3,
+            "fragment_retries": 3,
+            "extractor_retries": 2,
             "file_access_retries": 3,
             "concurrent_fragment_downloads": 4,
             "geo_bypass": True,
+            # Node ships with the production image. yt-dlp only enables Deno
+            # by default, and YouTube's web/mweb clients need the JavaScript
+            # challenge solver for n-sig/sig. Without an explicit runtime,
+            # yt-dlp warns and may miss or fail every adaptive format.
+            "js_runtimes": {"node": {}},
             "http_headers": {
                 "User-Agent": (
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -449,20 +467,45 @@ class InstaDownloader(commands.Cog):
 
         if source == "youtube":
             cookie_file = youtube_cookie_file()
-            clients = dict(base)
-            clients["extractor_args"] = {
-                "youtube": {
-                    "player_client": [
-                        "ios", "android_vr", "tv", "web_embedded", "mweb",
-                    ],
+            youtube_base = {
+                **base,
+                # Prefer H.264/AAC so Discord can play the file without a
+                # second re-encode. The fallbacks still allow VP9/AV1 audio.
+                "format": (
+                    "bv*[vcodec^=avc1]+ba[acodec^=mp4a]/"
+                    "b[ext=mp4]/bv*+ba/b"
+                ),
+                "merge_output_format": "mp4",
+                "max_filesize": source_cap(upload_limit),
+            }
+            pot_server = (
+                os.getenv("YOUTUBE_POT_SERVER")
+                or os.getenv("YOUTUBE_SESSION_SERVER")
+                or "http://127.0.0.1:8081"
+            ).strip().rstrip("/")
+            pot_options = {
+                **youtube_base,
+                "extractor_args": {
+                    # The bgutil provider supplies the GVS/player PoTokens
+                    # that YouTube now requires from datacenter IPs.
+                    "youtube": {
+                        "player_client": [
+                            "web", "mweb", "tv", "ios", "android_vr",
+                            "web_embedded",
+                        ],
+                    },
+                    "youtubepot-bgutilhttp": {
+                        "base_url": [pot_server],
+                    },
                 },
             }
+            # Public Shorts first use the cookie-free BotGuard session so a
+            # stale owner cookie can never block them.
+            add(pot_options)
             if cookie_file:
-                clients["cookiefile"] = cookie_file
-            add(clients)
-            if cookie_file:
-                add({**base, "cookiefile": cookie_file})
-            add(dict(base))
+                add({**youtube_base, "cookiefile": cookie_file})
+                add({**pot_options, "cookiefile": cookie_file})
+            add(dict(youtube_base))
         else:
             cookie_file = instagram_cookie_file()
             username, password = instagram_credentials()
@@ -482,9 +525,14 @@ class InstaDownloader(commands.Cog):
         for options in attempts:
             try:
                 with yt_dlp.YoutubeDL(options) as ydl:
-                    path = download_fitting_video(
-                        ydl, url, upload_limit, compress=True
-                    )
+                    if source == "youtube":
+                        path = download_youtube_video(
+                            ydl, url, upload_limit, compress=True
+                        )
+                    else:
+                        path = download_fitting_video(
+                            ydl, url, upload_limit, compress=True
+                        )
                 if path and os.path.isfile(path) and is_valid_video(path):
                     print(f"[InstaDL] yt-dlp downloaded {source} successfully")
                     return path, None
@@ -521,6 +569,7 @@ class InstaDownloader(commands.Cog):
         # another download while this one is still in flight.
         self._pending_downloads.add(failure_key)
 
+        self._status_label = "Downloading"
         status = await self._send_status(
             message.channel, "Downloading ⏳", reference=None, auto_delete=0
         )
@@ -599,7 +648,7 @@ class InstaDownloader(commands.Cog):
         i = 0
         try:
             while True:
-                await status.edit(content=f"Downloading {dots[i]} ⏳")
+                await status.edit(content=f"{self._status_label} {dots[i]} ⏳")
                 i = (i + 1) % len(dots)
                 await asyncio.sleep(interval)
         except (discord.NotFound, discord.HTTPException):
@@ -609,35 +658,38 @@ class InstaDownloader(commands.Cog):
 
     async def _send_download_failure(self, message, source, ytdlp_error):
         cobalt_error = self._last_cobalt_error
-        if cobalt_error and cobalt_error.user_message:
+        lowered = str(ytdlp_error or "").lower()
+        ytdlp_needs_login = bool(ytdlp_error) and any(term in lowered for term in (
+            "login", "sign in", "confirm you", "bot check", "cookies",
+        ))
+        if source == "instagram" and ytdlp_error and any(term in lowered for term in (
+            "login", "rate-limit", "rate limit", "empty media response",
+            "redirected", "checkpoint", "cookies",
+        )):
+            if instagram_cookie_header():
+                text = (
+                    "Instagram refused the download even with the saved "
+                    "session. The session may have expired; sign in again "
+                    "from the dashboard's Instagram login, or try again later."
+                )
+            else:
+                text = (
+                    "Instagram is blocking anonymous Reel downloads. Sign "
+                    "in from Admin Panel → Instagram login (or add "
+                    "`INSTAGRAM_COOKIES` in Railway Variables), then try "
+                    "this link again."
+                )
+        elif ytdlp_needs_login:
+            # yt-dlp's error is more specific than Cobalt's generic fetch
+            # failure. Prefer it so the owner knows a session is required.
+            text = (
+                "The platform is asking the bot to sign in. Connect a "
+                "session in the dashboard and try the link again."
+            )
+        elif cobalt_error and cobalt_error.user_message:
             text = cobalt_error.user_message
         elif ytdlp_error:
-            lowered = str(ytdlp_error).lower()
-            if source == "instagram" and any(term in lowered for term in (
-                "login", "rate-limit", "rate limit", "empty media response",
-                "redirected", "checkpoint", "cookies",
-            )):
-                if instagram_cookie_header():
-                    text = (
-                        "Instagram refused the download even with the saved "
-                        "session. The session may have expired; sign in again "
-                        "from the dashboard's Instagram login, or try again later."
-                    )
-                else:
-                    text = (
-                        "Instagram is blocking anonymous Reel downloads. Sign "
-                        "in from Admin Panel → Instagram login (or add "
-                        "`INSTAGRAM_COOKIES` in Railway Variables), then try "
-                        "this link again."
-                    )
-            elif any(term in lowered for term in (
-                "login", "sign in", "confirm you", "bot check", "cookies",
-            )):
-                text = (
-                    "The platform is asking the bot to sign in. Connect a "
-                    "session in the dashboard and try the link again."
-                )
-            elif any(term in lowered for term in (
+            if any(term in lowered for term in (
                 "not available", "private", "removed", "unavailable",
             )):
                 text = (
@@ -662,9 +714,10 @@ class InstaDownloader(commands.Cog):
 
         Instagram first asks Instagram's own API with the owner session, then
         local Cobalt, hosted Cobalt, cookie-aware yt-dlp, and finally the public
-        embed page. YouTube uses Cobalt and yt-dlp. Any route may return a file
-        larger than the Discord budget; it is compressed before upload instead
-        of being discarded.
+        embed page. YouTube uses yt-dlp with the local BotGuard PoToken server,
+        then local and hosted Cobalt. Any route may return a file larger than
+        the Discord budget; it is compressed before upload instead of being
+        discarded.
         """
         loop = asyncio.get_running_loop()
         self._last_cobalt_error = None
@@ -693,6 +746,18 @@ class InstaDownloader(commands.Cog):
                 if file_path:
                     print("[InstaDL] Instagram API downloaded successfully")
 
+        if not file_path and source == "youtube":
+            try:
+                file_path, ytdlp_error = await loop.run_in_executor(
+                    None, self._ytdlp_download, url, upload_limit, source,
+                )
+            except Exception as error:
+                ytdlp_error = str(error)
+                print(f"[InstaDL] yt-dlp route failed: {type(error).__name__}")
+            else:
+                if file_path:
+                    print("[InstaDL] yt-dlp downloaded YouTube successfully")
+
         if not file_path:
             try:
                 file_path = await loop.run_in_executor(
@@ -706,7 +771,7 @@ class InstaDownloader(commands.Cog):
                 None, self._hosted_download, url, upload_limit, source,
             )
 
-        if not file_path:
+        if not file_path and source != "youtube":
             try:
                 file_path, ytdlp_error = await loop.run_in_executor(
                     None, self._ytdlp_download, url, upload_limit, source,
@@ -753,6 +818,7 @@ class InstaDownloader(commands.Cog):
         try:
             size = os.path.getsize(file_path)
             if size > upload_limit:
+                self._status_label = "Compressing"
                 compressed = await loop.run_in_executor(
                     None, compress_to_budget, file_path, upload_limit,
                 )
@@ -777,6 +843,7 @@ class InstaDownloader(commands.Cog):
             if ext not in (".mp4", ".webm", ".mov", ".m4v"):
                 ext = ".mp4"
 
+            self._status_label = "Uploading"
             try:
                 await self._send_media(message, file_path, source, ext)
             except discord.HTTPException as error:
@@ -794,6 +861,7 @@ class InstaDownloader(commands.Cog):
                         )
                     except OSError:
                         retry_limit = upload_limit
+                    self._status_label = "Compressing"
                     compressed = await loop.run_in_executor(
                         None, compress_to_budget, file_path, retry_limit,
                     )
@@ -803,6 +871,7 @@ class InstaDownloader(commands.Cog):
                         except OSError:
                             pass
                         file_path = compressed
+                        self._status_label = "Uploading"
                         try:
                             await self._send_media(message, file_path, source, ext)
                             return True

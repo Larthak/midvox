@@ -2,7 +2,13 @@ import os
 import tempfile
 import unittest
 from unittest.mock import patch
-from media_quality import download_fitting_video, fitting_formats, is_valid_video, upload_budget
+from media_quality import (
+    download_fitting_video,
+    download_youtube_video,
+    fitting_formats,
+    is_valid_video,
+    upload_budget,
+)
 
 
 class MediaQualityTests(unittest.TestCase):
@@ -79,6 +85,53 @@ class MediaQualityTests(unittest.TestCase):
             def process_ie_result(self, info, download):
                 raise AssertionError("Should not download")
         self.assertIsNone(download_fitting_video(Downloader(), "video", 100))
+
+    def test_youtube_uses_the_merged_download_path(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "video.mp4")
+            with open(path, "wb") as output:
+                output.write(b"x" * 50)
+            class Downloader:
+                def extract_info(self, url, download):
+                    return {"requested_downloads": [{"filepath": path}]}
+            self.assertEqual(
+                download_youtube_video(Downloader(), "video", 100), path
+            )
+
+    def test_youtube_oversized_merge_is_compressed_and_source_removed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = os.path.join(folder, "source.mp4")
+            compressed = os.path.join(folder, "compressed.mp4")
+            with open(source, "wb") as output:
+                output.write(b"x" * 200)
+            with open(compressed, "wb") as output:
+                output.write(b"x" * 80)
+            class Downloader:
+                def extract_info(self, url, download):
+                    return {"requested_downloads": [{"filepath": source}]}
+            with patch("media_quality.compress_to_budget", return_value=compressed) as encode:
+                result = download_youtube_video(Downloader(), "video", 100)
+            self.assertEqual(result, compressed)
+            self.assertFalse(os.path.exists(source))
+            encode.assert_called_once_with(source, 100)
+
+    def test_youtube_failed_compression_removes_the_oversized_source(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = os.path.join(folder, "source.mp4")
+            with open(source, "wb") as output:
+                output.write(b"x" * 200)
+            class Downloader:
+                def extract_info(self, url, download):
+                    return {"requested_downloads": [{"filepath": source}]}
+            with patch("media_quality.compress_to_budget", return_value=None):
+                self.assertIsNone(download_youtube_video(Downloader(), "video", 100))
+            self.assertFalse(os.path.exists(source))
+
+    def test_youtube_without_a_downloaded_file_returns_none(self):
+        class Downloader:
+            def extract_info(self, url, download):
+                return {"requested_downloads": []}
+        self.assertIsNone(download_youtube_video(Downloader(), "video", 100))
 
     def test_encoding_failure_removes_partial_output(self):
         import subprocess

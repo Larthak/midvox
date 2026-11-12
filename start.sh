@@ -226,8 +226,40 @@ fi
 # configured) before the sidecar starts so Reels can use an authenticated
 # request instead of Instagram's anonymous rate limiter.
 timeout 20s python "$ROOT/bot/cobalt_cookies.py" || echo "WARNING: Instagram cookie handoff failed; continuing startup."
-python /opt/youtube-session/login.py &
+
+# Keep the owner login sidecar under a supervisor. When it exited silently the
+# dashboard could only report "service unavailable", so log the first failure
+# and retry instead of leaving the login pages permanently broken.
+export YT_LOGIN_PORT="${YT_LOGIN_PORT:-8082}"
+: > "$ROOT/login.log"
+(
+  trap 'kill -TERM "${LOGIN_CHILD:-}" 2>/dev/null || true; exit 0' TERM INT
+  while true; do
+    echo "[login] starting on 127.0.0.1:${YT_LOGIN_PORT}" >> "$ROOT/login.log"
+    python /opt/youtube-session/login.py >> "$ROOT/login.log" 2>&1 &
+    LOGIN_CHILD=$!
+    wait "$LOGIN_CHILD"
+    LOGIN_EXIT=$?
+    echo "WARNING: Owner login sidecar exited (code $LOGIN_EXIT); restarting in 5s. Last log lines:" >&2
+    tail -n 8 "$ROOT/login.log" >&2 || true
+    sleep 5
+  done
+) &
 YT_LOGIN_PID=$!
+
+LOGIN_READY=0
+for i in $(seq 1 20); do
+  if python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:${YT_LOGIN_PORT}/healthz', timeout=1)" >/dev/null 2>&1; then
+    echo "Owner login sidecar is ready on 127.0.0.1:${YT_LOGIN_PORT}."
+    LOGIN_READY=1
+    break
+  fi
+  sleep 1
+done
+if [ "$LOGIN_READY" -ne 1 ]; then
+  echo "WARNING: Owner login sidecar did not become ready. Log tail:" >&2
+  tail -n 40 "$ROOT/login.log" 2>/dev/null || true
+fi
 echo "Owner logins available at /dashboard/youtube-login and /dashboard/instagram-login."
 export COBALT_YOUTUBE_CLIENT="${COBALT_YOUTUBE_CLIENT:-IOS}"
 echo "Cobalt YouTube client: $COBALT_YOUTUBE_CLIENT"

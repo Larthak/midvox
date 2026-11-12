@@ -23,7 +23,9 @@ pydantic
 Pillow
 numpy
 openai
-yt-dlp
+yt-dlp==2026.10.26
+yt-dlp-ejs==0.8.0
+bgutil-ytdlp-pot-provider==2.0.2
 wavelink
 mcstatus
 deep-translator==1.11.4

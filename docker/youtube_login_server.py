@@ -5,13 +5,20 @@ import base64
 import json
 import os
 import signal
+import sys
 import tempfile
 import time
+import traceback
 from pathlib import Path
 
-from aiohttp import ClientSession, web
+try:
+    from aiohttp import ClientSession, ClientTimeout, web
+except ImportError as exc:  # pragma: no cover - deployment diagnostics
+    raise SystemExit(f"[login] fatal: aiohttp is not installed: {exc}") from exc
 
 COOKIE_FILE = Path(os.getenv("COOKIE_PATH", "/tmp/midvox-youtube-cookies.json"))
+LOGIN_HOST = os.getenv("YT_LOGIN_HOST", "127.0.0.1")
+LOGIN_PORT = int(os.getenv("YT_LOGIN_PORT", "8082"))
 
 
 class BrowserUnavailable(ValueError):
@@ -243,37 +250,53 @@ class LoginBrowser:
             *args, env=dict(os.environ, DISPLAY=self.display_name),
             stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
         )
-        self.session = ClientSession()
+        self.session = ClientSession(timeout=ClientTimeout(total=8, connect=3))
+        # Chromium normally answers within a couple of seconds. Cap the whole
+        # attach sequence so a wedged browser cannot hold the dashboard request
+        # for minutes and leave every later login action timing out.
+        deadline = time.monotonic() + 20
         for _ in range(40):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
             try:
-                async with self.session.get(f"http://127.0.0.1:{self.debug_port}/json/list") as response:
-                    pages = await response.json()
-                page = next(p for p in pages if p.get("type") == "page")
-                self.socket = await self.session.ws_connect(page["webSocketDebuggerUrl"])
-                await self.command("Network.enable")
-                await self.command("Emulation.setDeviceMetricsOverride", {
-                    "width": 1100, "height": 800, "deviceScaleFactor": 1, "mobile": False,
-                })
-                if self.kind == "youtube":
-                    # Account management needs no video streams or feed thumbnails.
-                    # Keep Google sign-in scripts, images and verification intact.
-                    await self.command("Network.setBlockedURLs", {"urls": [
-                        "*://*.googlevideo.com/*", "*://i.ytimg.com/*",
-                    ]})
-                if self.kind in ("youtube", "instagram"):
-                    try:
-                        contents = json.loads(COOKIE_FILE.read_text(encoding="utf-8"))
-                    except (OSError, ValueError, TypeError, AttributeError):
-                        contents = {}
+                async with asyncio.timeout(remaining):
+                    async with self.session.get(
+                        f"http://127.0.0.1:{self.debug_port}/json/list"
+                    ) as response:
+                        pages = await response.json()
+                    page = next(p for p in pages if p.get("type") == "page")
+                    self.socket = await self.session.ws_connect(page["webSocketDebuggerUrl"])
+                    await self.command("Network.enable")
+                    await self.command("Emulation.setDeviceMetricsOverride", {
+                        "width": 1100, "height": 800, "deviceScaleFactor": 1, "mobile": False,
+                    })
                     if self.kind == "youtube":
-                        cookies = youtube_browser_cookies(contents)
-                    else:
-                        cookies = instagram_browser_cookies(contents)
-                    if cookies:
-                        await self.command("Network.setCookies", {"cookies": cookies})
-                    await self.command("Page.navigate", {"url": self.url})
-                return
+                        # Account management needs no video streams or feed thumbnails.
+                        # Keep Google sign-in scripts, images and verification intact.
+                        await self.command("Network.setBlockedURLs", {"urls": [
+                            "*://*.googlevideo.com/*", "*://i.ytimg.com/*",
+                        ]})
+                    if self.kind in ("youtube", "instagram"):
+                        try:
+                            contents = json.loads(COOKIE_FILE.read_text(encoding="utf-8"))
+                        except (OSError, ValueError, TypeError, AttributeError):
+                            contents = {}
+                        if self.kind == "youtube":
+                            cookies = youtube_browser_cookies(contents)
+                        else:
+                            cookies = instagram_browser_cookies(contents)
+                        if cookies:
+                            await self.command("Network.setCookies", {"cookies": cookies})
+                        await self.command("Page.navigate", {"url": self.url})
+                    return
             except Exception:
+                if self.socket is not None:
+                    try:
+                        await self.socket.close()
+                    except Exception:
+                        pass
+                    self.socket = None
                 await asyncio.sleep(0.5)
         await self.stop()
         raise ValueError("The Railway login browser could not start.")
@@ -418,29 +441,50 @@ async def main():
         selected = browsers.get(request.path)
         if selected is None:
             raise web.HTTPNotFound()
-        async with login_lock:
-            if request.method == "POST":
-                try:
-                    action = (await request.json()).get("action")
-                except (ValueError, AttributeError):
-                    action = None
-                if action == "start":
+        # Only "start" needs cross-service coordination. Holding the global lock
+        # for status and screenshot requests let one stuck browser make every
+        # login page look unavailable.
+        if request.method == "POST":
+            try:
+                action = (await request.json()).get("action")
+            except (ValueError, AttributeError):
+                action = None
+            if action == "start":
+                async with login_lock:
                     for other in browsers.values():
                         if other is not selected:
                             async with other.lock:
                                 await other.stop()
-            return await selected.handle(request)
+        return await selected.handle(request)
+
+    async def health(request):
+        # start.sh and the dashboard use this to distinguish a live sidecar
+        # from a process that exited before binding its port.
+        return web.json_response({
+            "status": "ok", "service": "owner-login", "pid": os.getpid(),
+        })
 
     app = web.Application(client_max_size=8192)
+    app.router.add_get("/healthz", health)
     for path in browsers:
         app.router.add_route("*", path, handle_login)
     runner = web.AppRunner(app, access_log=None)
     await runner.setup()
-    await web.TCPSite(runner, "127.0.0.1", 8082).start()
+    try:
+        await web.TCPSite(runner, LOGIN_HOST, LOGIN_PORT).start()
+    except OSError as exc:
+        await runner.cleanup()
+        raise RuntimeError(
+            f"cannot listen on {LOGIN_HOST}:{LOGIN_PORT}: {exc}"
+        ) from exc
+    print(f"[login] listening on http://{LOGIN_HOST}:{LOGIN_PORT}", flush=True)
     reapers = [asyncio.create_task(browser.reap()) for browser in browsers.values()]
     stopped = asyncio.Event()
     for sig in (signal.SIGTERM, signal.SIGINT):
-        asyncio.get_running_loop().add_signal_handler(sig, stopped.set)
+        try:
+            asyncio.get_running_loop().add_signal_handler(sig, stopped.set)
+        except NotImplementedError:  # Windows development only
+            signal.signal(sig, lambda *_: stopped.set())
     try:
         await stopped.wait()
     finally:
@@ -452,4 +496,9 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception:
+        print("[login] fatal: the owner login sidecar could not start:", file=sys.stderr, flush=True)
+        traceback.print_exc()
+        sys.exit(1)

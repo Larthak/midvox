@@ -34,10 +34,9 @@ def extraction_error(codes, source="youtube"):
     if codes and all(code == "error.api.fetch.fail" for code in codes):
         return CobaltDownloadError(
             "error.api.fetch.fail",
-            "YouTube blocked Cobalt's Railway/WARP connection for this Short. "
-            "Cookie-free downloads cannot complete from the current server "
-            "network; connect a YouTube session at /dashboard/youtube-login "
-            "or enable COBALT_WARP=1.",
+            "YouTube blocked every download route for this Short. "
+            "Connect a YouTube session at /dashboard/youtube-login, then "
+            "repost the link.",
         )
     if "error.api.youtube.login" in codes:
         return CobaltDownloadError(

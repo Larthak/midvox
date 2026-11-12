@@ -18,7 +18,8 @@ async function browserProxy(req: NextRequest) {
     if (body && body.length > 8192) {
       return NextResponse.json({ detail: "Browser action is too large." }, { status: 400 });
     }
-    const response = await fetch("http://127.0.0.1:8082/discord-browser", {
+    const loginBase = `http://127.0.0.1:${process.env.YT_LOGIN_PORT || "8082"}`;
+    const response = await fetch(`${loginBase}/discord-browser`, {
       method: req.method,
       headers: { "Content-Type": "application/json" },
       body,
@@ -33,8 +34,16 @@ async function browserProxy(req: NextRequest) {
         "X-Content-Type-Options": "nosniff",
       },
     });
-  } catch {
-    return NextResponse.json({ detail: "The Railway login service is unavailable. Check the deployment logs." }, { status: 502 });
+  } catch (error) {
+    const failure = error as { cause?: { code?: string }; name?: string };
+    const cause = failure?.cause?.code;
+    const timedOut = failure?.name === "TimeoutError";
+    return NextResponse.json({
+      detail: timedOut
+        ? "The Railway login sidecar did not answer within 45 seconds. Close this page and open the login page again; if it persists, check the [login] lines in the deployment log."
+        : `The Railway login sidecar is not running (${cause || "connection refused"}). Check the [login] lines in the deployment log; login.py writes its startup error there.`,
+      reason: timedOut ? "timeout" : (cause || "unreachable"),
+    }, { status: 502 });
   }
 }
 

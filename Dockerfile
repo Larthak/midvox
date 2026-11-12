@@ -133,7 +133,7 @@ COPY docker/youtube_login_server.py /opt/youtube-session/login.py
 COPY docker/youtube_session_store.py /opt/youtube-session/youtube_session_store.py
 COPY start.sh start.sh
 RUN test -x /usr/local/bin/bgutil-pot \
-    && python -m py_compile /opt/youtube-session/server.py \
+    && python -m py_compile /opt/youtube-session/server.py /opt/youtube-session/login.py /opt/youtube-session/youtube_session_store.py \
     && sed -i 's/\r$//' start.sh && bash -n start.sh
 
 ENV NODE_ENV=production

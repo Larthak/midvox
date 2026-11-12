@@ -10,8 +10,8 @@ class CobaltErrorTests(unittest.TestCase):
     def test_fetch_fail_explains_blocked_server_connection(self):
         error = extraction_error(["error.api.fetch.fail", "error.api.fetch.fail"])
         self.assertEqual(error.code, "error.api.fetch.fail")
-        self.assertIn("Railway/WARP", error.user_message)
-        self.assertIn("Cookie-free downloads cannot complete", error.user_message)
+        self.assertIn("blocked every", error.user_message)
+        self.assertIn("/dashboard/youtube-login", error.user_message)
 
     def test_login_failure_survives_different_client_errors(self):
         error = extraction_error([

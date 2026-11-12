@@ -135,6 +135,64 @@ def download_fitting_video(ydl, url, limit, *, compress=False):
     return None
 
 
+def download_youtube_video(ydl, url, limit, *, compress=True):
+    """Download the best muxed/adaptive streams for a YouTube URL.
+
+    Unlike :func:`download_fitting_video`, this lets yt-dlp pair a video-only
+    stream with its audio stream. Shorts often expose 1080p only as adaptive
+    DASH, so restricting the search to pre-muxed formats loses the best quality
+    and sometimes every playable format.
+    """
+    info = ydl.extract_info(url, download=True)
+    if not isinstance(info, dict):
+        return None
+
+    candidates = []
+    for item in info.get("requested_downloads") or []:
+        if not isinstance(item, dict):
+            continue
+        candidate = item.get("filepath") or item.get("_filename")
+        if candidate and os.path.isfile(candidate):
+            candidates.append(candidate)
+    if not candidates:
+        candidate = info.get("filepath") or info.get("_filename")
+        if candidate and os.path.isfile(candidate):
+            candidates.append(candidate)
+    if not candidates:
+        try:
+            candidate = ydl.prepare_filename(info)
+        except Exception:
+            candidate = None
+        if candidate and os.path.isfile(candidate):
+            candidates.append(candidate)
+    if not candidates:
+        return None
+
+    path = max(candidates, key=os.path.getsize)
+    size = os.path.getsize(path)
+    if size <= limit:
+        return path
+    if not compress:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+        return None
+    compressed = compress_to_budget(path, limit)
+    if compressed and compressed != path:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+    elif not compressed:
+        # The encode failed, so do not leave a source above the cap behind.
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+    return compressed
+
+
 def compress_to_budget(path, limit):
     """Encode one oversized Reel to a bounded H.264/AAC upload, off the event loop.
 

@@ -12,7 +12,7 @@
 
 **One control center for moderation, automation, media, roles, logging, and community tools.**
 
-[Open MidVox](https://midvox-production-7517.up.railway.app/) · [Dashboard](https://midvox-production-7517.up.railway.app/dashboard) · [Documentation](https://midvox-production-7517.up.railway.app/docs)
+[Open MidVox](https://midvox-production-159ca788.up.railway.app/) · [Dashboard](https://midvox-production-159ca788.up.railway.app/dashboard) · [Documentation](https://midvox-production-159ca788.up.railway.app/docs)
 
 </div>
 
@@ -101,11 +101,16 @@ MidVox ships as one production Docker image. Railway should build the repository
 
 `start.sh` derives `NEXTAUTH_URL` from Railway's public domain at runtime, which prevents OAuth redirects from pointing to an older deployment.
 
-Public YouTube Shorts use local Cobalt with a renewable anonymous PoToken
-session. YouTube can still challenge Railway's connection. For independent
+Public YouTube Shorts are downloaded with yt-dlp first, using the bundled
+BotGuard PoToken server (`docker/youtube_session_server.py`) so YouTube's
+datacenter checks are satisfied without a saved account. The image also ships
+Node because yt-dlp needs a JavaScript runtime for YouTube's web client
+challenges. If yt-dlp is challenged, the downloader falls back to local Cobalt
+with the same token, then to hosted providers. YouTube sessions remain optional
+and only improve age-restricted or owner-visible content. For independent
 hosted download routes, set `COBALT_HOSTED_PROVIDERS` to a JSON array of Cobalt
-API endpoints whose operators permit your use. Example (place real keys only
-in Railway Variables):
+API endpoints whose operators permit your use. Example (place real keys only in
+Railway Variables):
 
 ```json
 [{"url":"https://your-provider.example","api_key":"your-key"}]
@@ -123,14 +128,15 @@ it. Only sources beyond the 100 MB compression cap (`MEDIA_SOURCE_MAX_BYTES`)
 or a failed encode are refused, so a normal Instagram Reel or YouTube Short
 does not fail with an upload-limit error.
 
-If Cobalt is blocked, the downloader falls back to `yt-dlp`. Public posts work
-without credentials, but a browser session raises the success rate from
-datacenter IPs. These variables accept a raw `Cookie` header, a Cookie-Editor
-JSON export, a base64 Netscape export, or a path to a `cookies.txt` file:
+When Cobalt is blocked on Instagram, the downloader falls back to `yt-dlp`.
+Public posts work without credentials, but a browser session raises the
+success rate from datacenter IPs. These variables accept a raw `Cookie`
+header, a Cookie-Editor JSON export, a base64 Netscape export, or a path to a
+`cookies.txt` file:
 
 | Variable | Purpose |
 | :--- | :--- |
-| `YT_COOKIES` / `YOUTUBE_COOKIES` | YouTube session for the yt-dlp fallback |
+| `YT_COOKIES` / `YOUTUBE_COOKIES` | Optional YouTube session for yt-dlp (public Shorts use the BotGuard PoToken server) |
 | `INSTAGRAM_COOKIES` / `IG_COOKIES` | Instagram session for Instagram's API, Cobalt, yt-dlp and the embed fallback |
 | `INSTAGRAM_COOKIE_FILE` / `IG_COOKIE_FILE` | Path to a Netscape Instagram cookie file |
 | `INSTAGRAM_USERNAME` / `INSTAGRAM_PASSWORD` | Optional Instagram login for yt-dlp |
@@ -241,6 +247,8 @@ When YouTube requires sign-in, open **Admin Panel → Open YouTube login** (or `
 Instagram uses the same on-demand browser. Open **Admin Panel → Open Instagram login** (or `/dashboard/instagram-login`), sign in to the account that should download public Reels, then choose **Save session and close**. The session is written to Cobalt's shared cookie store, restored into the browser the next time it opens, and also used by Instagram's API and yt-dlp. Saving restarts only Cobalt. Use a dedicated account when possible; automated access can be rate-limited or flagged by Instagram.
 
 Chromium starts only on demand and closes after saving, closing, or 30 minutes without browser requests. Cookies are backed up encrypted in MongoDB with no application-defined expiry, restored during startup, and loaded into the browser when it opens. YouTube and Instagram have separate encrypted records, so refreshing one never overwrites the other. Keep the same `MONGO_URI`, `NEXTAUTH_SECRET`, and primary (first) `OWNER_IDS` entry when moving hosts; the bot application ID may change. Old application-specific backups migrate automatically. A failed database backup is reported instead of claiming a portable save. Google or Instagram can still expire or revoke a session, or challenge a new hosting connection, requiring another login. Cookies are never committed or returned to the dashboard.
+
+If a login page reports that the sidecar is not running, the deployment log shows `[login]` lines and `login.log` keeps the startup traceback. The sidecar is supervised and restarts every five seconds; `/api/health` reports `"login_sidecar":"ready"` once it is listening. The dashboard and sidecar share `YT_LOGIN_PORT` (default `8082`).
 
 Keep bot tokens, OAuth secrets, cookie headers, API keys, and MongoDB credentials in Railway Variables or a local untracked `.env` file. Rotate any credential that appears in a commit, screenshot, log, or shared message.
 
