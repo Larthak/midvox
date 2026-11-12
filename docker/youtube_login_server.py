@@ -19,10 +19,67 @@ except ImportError as exc:  # pragma: no cover - deployment diagnostics
 COOKIE_FILE = Path(os.getenv("COOKIE_PATH", "/tmp/midvox-youtube-cookies.json"))
 LOGIN_HOST = os.getenv("YT_LOGIN_HOST", "127.0.0.1")
 LOGIN_PORT = int(os.getenv("YT_LOGIN_PORT", "8082"))
+BROWSER_LOG_DIR = Path(os.getenv("LOGIN_BROWSER_LOG_DIR", "/tmp/midvox-login"))
+try:
+    BROWSER_START_TIMEOUT = max(10.0, float(os.getenv("LOGIN_BROWSER_START_TIMEOUT", "40")))
+except ValueError:
+    BROWSER_START_TIMEOUT = 40.0
 
 
 class BrowserUnavailable(ValueError):
     """The browser must be reopened, rather than retrying a stale screenshot."""
+
+
+def _login_browser_processes():
+    """Find Chromium/Xvfb processes left behind by an earlier sidecar."""
+    try:
+        entries = list(Path("/proc").iterdir())
+    except OSError:
+        return
+    displays = {f":{number}" for number in range(87, 97)}
+    for entry in entries:
+        if not entry.name.isdigit():
+            continue
+        pid = int(entry.name)
+        if pid == os.getpid():
+            continue
+        try:
+            raw = (entry / "cmdline").read_bytes()
+        except OSError:
+            continue
+        fields = [part.decode("utf-8", "replace") for part in raw.split(b"\0") if part]
+        if not fields:
+            continue
+        executable = Path(fields[0]).name
+        if executable == "Xvfb" and displays.intersection(fields):
+            yield pid
+        elif executable == "chromium" and "-login-" in " ".join(fields) \
+                and "/tmp/midvox-" in " ".join(fields):
+            yield pid
+
+
+def reap_orphan_browsers():
+    """Kill leftover login browsers so they cannot hold memory or displays."""
+    pids = list(_login_browser_processes())
+    if not pids:
+        return
+    print(f"[login] stopping {len(pids)} leftover browser process(es)", flush=True)
+    for pid in pids:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            pass
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline:
+        if not any(Path(f"/proc/{pid}").exists() for pid in pids):
+            return
+        time.sleep(0.1)
+    for pid in pids:
+        if Path(f"/proc/{pid}").exists():
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except OSError:
+                pass
 
 
 def youtube_cookie_header(cookies):
@@ -75,18 +132,21 @@ class LoginBrowser:
     def __init__(self, kind="youtube"):
         self.kind = kind
         if kind == "instagram":
-            self.display_name = ":87"
-            self.debug_port = 9225
+            self.display_base = 87
             self.url = "https://www.instagram.com/accounts/login/"
         elif kind == "discord":
-            self.display_name = ":88"
-            self.debug_port = 9224
+            self.display_base = 88
             self.url = "https://discord.com/login"
         else:
-            self.display_name = ":89"
-            self.debug_port = 9223
+            self.display_base = 89
             self.url = "https://www.youtube.com/account"
+        self.display_name = None
+        # Port zero lets Chromium choose a free port and record it in
+        # DevToolsActivePort. Fixed ports collide with orphaned browsers after
+        # a redeploy and make every later login attempt fail.
+        self.debug_port = None
         self.process = self.display = self.profile = self.session = None
+        self.log_handles = []
         self.socket = None
         self.sequence = 0
         self.account_token = None
@@ -176,7 +236,15 @@ class LoginBrowser:
                     await process.wait()
         if self.profile:
             self.profile.cleanup()
+        for handle in self.log_handles:
+            try:
+                handle.close()
+            except OSError:
+                pass
+        self.log_handles.clear()
         self.process = self.display = self.profile = self.session = self.socket = None
+        self.display_name = None
+        self.debug_port = None
         self.account_token = None
         self.discord_requests.clear()
         self.discord_headers.clear()
@@ -228,37 +296,185 @@ class LoginBrowser:
                     raise
                 await asyncio.sleep(0.5)
 
+    @staticmethod
+    def display_lock_owner(number):
+        try:
+            return int(Path(f"/tmp/.X{number}-lock").read_text(encoding="utf-8").strip())
+        except (OSError, ValueError):
+            return None
+
+    @classmethod
+    def display_available(cls, number):
+        """Reuse only display numbers whose previous Xvfb is really gone."""
+        lock = Path(f"/tmp/.X{number}-lock")
+        socket = Path(f"/tmp/.X11-unix/X{number}")
+        if not lock.exists():
+            return not socket.exists()
+        owner = cls.display_lock_owner(number)
+        if owner is None:
+            return False
+        try:
+            os.kill(owner, 0)
+        except ProcessLookupError:
+            pass
+        except PermissionError:
+            return False
+        else:
+            return False
+        # A crash can leave the lock and socket behind. Remove both only after
+        # confirming the recorded Xvfb process no longer exists.
+        for path in (lock, socket):
+            try:
+                path.unlink()
+            except OSError:
+                pass
+        return not lock.exists() and not socket.exists()
+
+    def open_browser_log(self, name):
+        try:
+            BROWSER_LOG_DIR.mkdir(parents=True, exist_ok=True)
+            handle = open(BROWSER_LOG_DIR / f"{self.kind}-{name}.log", "wb", buffering=0)
+        except OSError:
+            return asyncio.subprocess.DEVNULL
+        self.log_handles.append(handle)
+        return handle
+
+    def read_log_tail(self, name, limit=4):
+        """Return a short, credential-free excerpt of a browser log."""
+        try:
+            with open(BROWSER_LOG_DIR / f"{self.kind}-{name}.log", "rb") as handle:
+                handle.seek(0, os.SEEK_END)
+                size = handle.tell()
+                handle.seek(max(0, size - 8192))
+                text = handle.read().decode("utf-8", "replace")
+        except OSError:
+            return ""
+        lines = []
+        for line in text.splitlines()[-limit:]:
+            lowered = line.lower()
+            if not line.strip() or any(word in lowered for word in (
+                    "cookie", "authorization", "password", "token=")):
+                continue
+            lines.append(line.strip()[:220])
+        return " | ".join(lines)
+
+    def failure_detail(self, reason):
+        print(f"[{self.kind}-login] browser start failed: {reason}", flush=True)
+        excerpts = []
+        for label, name in (("Xvfb", "xvfb"), ("Chromium", "chromium")):
+            excerpt = self.read_log_tail(name)
+            if excerpt:
+                print(f"[{self.kind}-login] {label}: {excerpt}", flush=True)
+                excerpts.append(f"{label}: {excerpt}")
+        detail = f"The Railway login browser could not start ({reason})."
+        if excerpts:
+            detail = f"{detail} {' '.join(excerpts)}"
+        return f"{detail[:700]} Check the [login] lines in the deployment log."
+
+    def read_debug_port(self):
+        try:
+            contents = (Path(self.profile.name) / "DevToolsActivePort").read_text(encoding="utf-8")
+            port = int(contents.splitlines()[0].strip())
+        except (OSError, ValueError, IndexError):
+            return None
+        return port if 0 < port < 65536 else None
+
+    @staticmethod
+    def exit_description(process):
+        code = process.returncode
+        if code is None:
+            return "is still running"
+        if code < 0:
+            hint = " (possibly out of memory)" if code == -9 else ""
+            return f"was killed by signal {-code}{hint}"
+        return f"exited with code {code}"
+
+    async def start_display(self):
+        failures = []
+        for number in range(self.display_base, self.display_base + 10):
+            if not self.display_available(number):
+                failures.append(f":{number} is in use")
+                continue
+            log = self.open_browser_log("xvfb")
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    "Xvfb", f":{number}", "-screen", "0", "1100x800x24", "-nolisten", "tcp",
+                    stdout=log, stderr=log,
+                )
+            except OSError as exc:
+                await self.stop()
+                raise ValueError(
+                    "The Railway login browser could not start (Xvfb is missing: "
+                    f"{exc.strerror or exc}). Check the deployment image."
+                ) from exc
+            for _ in range(30):
+                if process.returncode is not None:
+                    break
+                if Path(f"/tmp/.X11-unix/X{number}").exists():
+                    break
+                await asyncio.sleep(0.1)
+            if process.returncode is None:
+                self.display_name = f":{number}"
+                self.display = process
+                return
+            failures.append(f":{number} {self.exit_description(process)}")
+            await process.wait()
+        detail = ", ".join(failures[-3:]) or "no free display"
+        await self.stop()
+        raise ValueError(
+            f"The Railway login browser could not start (Xvfb: {detail}). "
+            "Check the [login] lines in the deployment log."
+        )
+
     async def start(self):
         await self.stop()
         self.profile = tempfile.TemporaryDirectory(prefix=f"midvox-{self.kind}-login-")
-        self.display = await asyncio.create_subprocess_exec(
-            "Xvfb", self.display_name, "-screen", "0", "1100x800x24", "-nolisten", "tcp",
-            stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
-        )
-        await asyncio.sleep(0.5)
+        await self.start_display()
         args = ["chromium", "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu",
                 "--no-first-run", "--no-default-browser-check", "--password-store=basic",
                 "--disable-extensions", "--mute-audio", "--renderer-process-limit=1",
                 "--js-flags=--max-old-space-size=256", "--disable-background-networking",
                 "--disable-component-update", "--disable-default-apps",
-                "--remote-debugging-address=127.0.0.1", f"--remote-debugging-port={self.debug_port}",
+                "--disable-breakpad", "--disable-crash-reporter",
+                "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=0",
                 f"--user-data-dir={self.profile.name}", "--window-size=1100,800",
                 "about:blank" if self.kind in ("youtube", "instagram") else self.url]
         if self.kind == "youtube" and os.getenv("COBALT_PROXY_URL"):
             args.insert(-1, f"--proxy-server={os.environ['COBALT_PROXY_URL']}")
-        self.process = await asyncio.create_subprocess_exec(
-            *args, env=dict(os.environ, DISPLAY=self.display_name),
-            stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
-        )
+        chromium_log = self.open_browser_log("chromium")
+        try:
+            self.process = await asyncio.create_subprocess_exec(
+                *args, env=dict(os.environ, DISPLAY=self.display_name),
+                stdout=chromium_log, stderr=chromium_log,
+            )
+        except OSError as exc:
+            await self.stop()
+            raise ValueError(
+                "The Railway login browser could not start (Chromium is missing: "
+                f"{exc.strerror or exc}). Check the deployment image."
+            ) from exc
         self.session = ClientSession(timeout=ClientTimeout(total=8, connect=3))
-        # Chromium normally answers within a couple of seconds. Cap the whole
-        # attach sequence so a wedged browser cannot hold the dashboard request
-        # for minutes and leave every later login action timing out.
-        deadline = time.monotonic() + 20
-        for _ in range(40):
+        # Chromium can be slow on a shared vCPU. Bound the whole sequence so a
+        # wedged browser cannot hold the dashboard request open indefinitely,
+        # while still allowing more than the old fixed 20-second window.
+        deadline = time.monotonic() + BROWSER_START_TIMEOUT
+        reason = "the DevTools endpoint did not answer"
+        while True:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
+                reason = f"the DevTools endpoint did not answer within {BROWSER_START_TIMEOUT:.0f}s"
                 break
+            if self.display and self.display.returncode is not None:
+                reason = f"Xvfb {self.exit_description(self.display)}"
+                break
+            if self.process.returncode is not None:
+                reason = f"Chromium {self.exit_description(self.process)}"
+                break
+            if self.debug_port is None:
+                self.debug_port = self.read_debug_port()
+                if self.debug_port is None:
+                    await asyncio.sleep(0.25)
+                    continue
             try:
                 async with asyncio.timeout(remaining):
                     async with self.session.get(
@@ -290,7 +506,8 @@ class LoginBrowser:
                             await self.command("Network.setCookies", {"cookies": cookies})
                         await self.command("Page.navigate", {"url": self.url})
                     return
-            except Exception:
+            except Exception as exc:
+                reason = f"{type(exc).__name__} while attaching to Chromium"
                 if self.socket is not None:
                     try:
                         await self.socket.close()
@@ -298,8 +515,9 @@ class LoginBrowser:
                         pass
                     self.socket = None
                 await asyncio.sleep(0.5)
+        detail = self.failure_detail(reason)
         await self.stop()
-        raise ValueError("The Railway login browser could not start.")
+        raise ValueError(detail)
 
     async def handle(self, request):
         async with self.lock:
@@ -430,6 +648,9 @@ class LoginBrowser:
 
 
 async def main():
+    # A previous sidecar may have been OOM-killed before it could stop its
+    # browser. Clear those processes before accepting any login request.
+    await asyncio.to_thread(reap_orphan_browsers)
     browsers = {
         "/browser": LoginBrowser("youtube"),
         "/discord-browser": LoginBrowser("discord"),

@@ -114,6 +114,7 @@ RUN apt-get update \
     && test -x /opt/Discord/discord \
     && test -n "$(find /var/lib/midvox/discord-home/discord -maxdepth 2 -type f -name Discord -perm /111 -print -quit)" \
     && command -v Xvfb \
+    && command -v chromium \
     && DISCORD_RUNTIME="$(find /var/lib/midvox/discord-home/discord -maxdepth 2 -type f -name Discord -perm /111 -print -quit)" \
     && if ldd "$DISCORD_RUNTIME" | grep 'not found'; then exit 1; fi \
     && rm -rf /var/lib/apt/lists/*

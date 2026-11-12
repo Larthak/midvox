@@ -14,7 +14,8 @@ namespace = {}
 exec(compile(ast.Module(body=[function, restore_function, instagram_function, instagram_restore, instagram_domain], type_ignores=[]), str(source), "exec"), namespace)
 cookie_header = namespace["youtube_cookie_header"]
 
-browser_namespace = {"asyncio": asyncio, "time": __import__("time"), "json": __import__("json")}
+browser_namespace = {"asyncio": asyncio, "time": __import__("time"), "json": __import__("json"),
+                     "os": __import__("os")}
 classes = [node for node in tree.body if isinstance(node, ast.ClassDef)]
 exec(compile(ast.Module(body=classes, type_ignores=[]), str(source), "exec"), browser_namespace)
 
@@ -73,6 +74,30 @@ class BrowserHealthTests(unittest.IsolatedAsyncioTestCase):
             browser_namespace["LoginBrowser"]("instagram").url,
             "https://www.instagram.com/accounts/login/",
         )
+
+    async def test_browser_chooses_display_and_debug_port_at_start(self):
+        # Fixed displays and ports survive a crashed browser as stale locks and
+        # make every later login attempt fail until the container restarts.
+        browser = browser_namespace["LoginBrowser"]()
+        self.assertIsNone(browser.display_name)
+        self.assertIsNone(browser.debug_port)
+        self.assertEqual(browser.display_base, 89)
+
+    async def test_start_failure_reports_browser_without_leaking_credentials(self):
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as directory:
+            browser_namespace["BROWSER_LOG_DIR"] = Path(directory)
+            (Path(directory) / "youtube-xvfb.log").write_text(
+                "Server is already active for display 89\n", encoding="utf-8")
+            (Path(directory) / "youtube-chromium.log").write_text(
+                "Failed to move to new namespace\nCookie: SID=secret\n", encoding="utf-8")
+            detail = browser_namespace["LoginBrowser"]().failure_detail("Chromium exited with code 1")
+        self.assertIn("Chromium exited with code 1", detail)
+        self.assertIn("Server is already active", detail)
+        self.assertIn("Failed to move to new namespace", detail)
+        self.assertNotIn("SID=secret", detail)
 
 
 class YouTubeLoginTests(unittest.TestCase):

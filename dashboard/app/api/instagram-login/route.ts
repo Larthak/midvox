@@ -24,7 +24,7 @@ async function browserProxy(req: NextRequest) {
       headers: { "Content-Type": "application/json" },
       body,
       cache: "no-store",
-      signal: AbortSignal.timeout(45000),
+      signal: AbortSignal.timeout(60000),
     });
     return new Response(await response.arrayBuffer(), {
       status: response.status,
@@ -40,7 +40,7 @@ async function browserProxy(req: NextRequest) {
     const timedOut = failure?.name === "TimeoutError";
     return NextResponse.json({
       detail: timedOut
-        ? "The Railway login sidecar did not answer within 45 seconds. Close this page and open the login page again; if it persists, check the [login] lines in the deployment log."
+        ? "The Railway login sidecar did not answer within 60 seconds. Close this page and open the login page again; if it persists, check the [login] lines in the deployment log."
         : `The Railway login sidecar is not running (${cause || "connection refused"}). Check the [login] lines in the deployment log; login.py writes its startup error there.`,
       reason: timedOut ? "timeout" : (cause || "unreachable"),
     }, { status: 502 });
