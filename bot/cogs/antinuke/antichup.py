@@ -5,6 +5,8 @@ import asyncio
 import datetime
 import pytz
 
+from utils.antinuke_alerts import send_antinuke_alert
+
 class AntiChannelUpdate(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -30,7 +32,7 @@ class AntiChannelUpdate(commands.Cog):
         return True
 
     async def fetch_audit_logs(self, guild, action, target_id):
-        if not guild.me.guild_permissions.ban_members:
+        if not guild.me.guild_permissions.view_audit_log:
             return None
         try:
             async for entry in guild.audit_logs(action=action, limit=5):
@@ -70,10 +72,11 @@ class AntiChannelUpdate(commands.Cog):
             if whitelist_status and whitelist_status[0]:
                 return
 
-            await self.revert_channel_update_and_ban(before, after, executor)
+            await self.revert_channel_update_and_alert(before, after, executor)
             await asyncio.sleep(3)
 
-    async def revert_channel_update_and_ban(self, before, after, executor, retries=3):
+    async def revert_channel_update_and_alert(self, before, after, executor, retries=3):
+        restored = False
         while retries > 0:
             try:
                 await after.edit(
@@ -85,9 +88,10 @@ class AntiChannelUpdate(commands.Cog):
                     user_limit=before.user_limit if hasattr(before, 'user_limit') else None,
                     reason="Channel Update | Unwhitelisted User"
                 )
+                restored = True
                 break
             except discord.Forbidden:
-                return
+                break
             except discord.HTTPException as e:
                 if e.status == 429:
                     retry_after = e.response.headers.get('Retry-After')
@@ -97,25 +101,14 @@ class AntiChannelUpdate(commands.Cog):
                     else:
                         break
             except Exception:
-                return
+                break
 
-        if retries == 0:
-            return
-
-        retries = 3
-        while retries > 0:
-            try:
-                await before.guild.ban(executor, reason="Channel Update | Unwhitelisted User")
-                return
-            except discord.Forbidden:
-                return
-            except discord.HTTPException as e:
-                if e.status == 429:
-                    retry_after = e.response.headers.get('Retry-After')
-                    if retry_after:
-                        await asyncio.sleep(float(retry_after))
-                        retries -= 1
-                    else:
-                        break
-            except Exception:
-                return
+        await send_antinuke_alert(
+            self.bot,
+            before.guild,
+            "Unauthorized channel update",
+            "A channel was modified by a user who is not whitelisted for channel updates."
+            + (" The previous settings were restored." if restored else ""),
+            executor=executor,
+            fields=[("Channel", f"#{before.name} (`{before.id}`)")],
+        )

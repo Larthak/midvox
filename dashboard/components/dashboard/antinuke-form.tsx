@@ -26,12 +26,12 @@ import { cn } from "@/lib/utils";
 import { AntiNukeConfig } from "@/types/api";
 
 const FEATURES = [
-  { id: 'anti_ban_kick', name: 'Anti Ban & Kick', desc: 'Auto bans rogue admins', icon: User },
-  { id: 'anti_server_edit', name: 'Anti Server Edit', desc: 'Secures icon, name & regions', icon: Server },
-  { id: 'anti_role_modifier', name: 'Anti Role Modifier', desc: 'Protects all roles & perms', icon: Settings },
-  { id: 'anti_channel_nukes', name: 'Anti Channel Nukes', desc: 'Prevents channel wipes', icon: MessageSquare },
-  { id: 'anti_bot_add', name: 'Bot Add Protection', desc: 'Removes unauthorized bots and bans the inviter', icon: Bot },
-  { id: 'anti_webhooks', name: 'Webhook Protection', desc: 'Blocks unauthorized webhook create, update and delete actions', icon: Webhook },
+  { id: 'anti_ban_kick', name: 'Anti Ban & Kick', desc: 'Alerts you to unauthorized bans and kicks', icon: User },
+  { id: 'anti_server_edit', name: 'Anti Server Edit', desc: 'Detects changes to icon, name and regions', icon: Server },
+  { id: 'anti_role_modifier', name: 'Anti Role Modifier', desc: 'Detects unauthorized role and permission changes', icon: Settings },
+  { id: 'anti_channel_nukes', name: 'Anti Channel Nukes', desc: 'Detects and repairs channel wipes', icon: MessageSquare },
+  { id: 'anti_bot_add', name: 'Bot Add Protection', desc: 'Alerts you when an unauthorized bot is added', icon: Bot },
+  { id: 'anti_webhooks', name: 'Webhook Protection', desc: 'Detects and removes unauthorized webhooks', icon: Webhook },
   { id: 'anti_mentions', name: 'Mass Mention Protection', desc: 'Deletes @everyone abuse and times out the sender', icon: AtSign },
   { id: 'auto_recovery', name: 'Automatic Recovery', desc: 'Restores deleted channels, roles and changed settings', icon: RotateCcw },
 ];
@@ -211,15 +211,15 @@ export function AntiNukeForm({ initialConfig, guildId }: AntiNukeFormProps) {
       </div>
 
       <div className="space-y-6">
-         <div className="bg-gradient-to-br from-red-500/10 to-transparent border border-red-500/20 rounded-[6px] p-6 relative overflow-hidden group">
+         <div className="bg-gradient-to-br from-amber-500/10 to-transparent border border-amber-500/20 rounded-[6px] p-6 relative overflow-hidden group">
             <div className="absolute -right-4 -top-4 opacity-[0.03] group-hover:scale-110 transition-transform">
-              <ShieldAlert className="h-32 w-32 text-red-500" />
+              <ShieldAlert className="h-32 w-32 text-amber-500" />
             </div>
-            <h3 className="text-sm font-bold text-red-400 mb-2">Maximum Protection</h3>
-            <p className="text-xs text-neutral-400 leading-relaxed mb-4">Anti-Nuke is fixed to instantly Ban malicious actors. Ensure that MidVox&apos;s role is at the TOP of the role hierarchy for it to be able to ban admins.</p>
+            <h3 className="text-sm font-bold text-amber-400 mb-2">Detection + Recovery</h3>
+            <p className="text-xs text-neutral-400 leading-relaxed mb-4">Anti-Nuke alerts you to malicious activity and automatically repairs damaged channels, roles, webhooks, and settings. It never bans, kicks, or unbans members.</p>
             <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-[10px] font-black uppercase text-red-500">Fixed Punishments</span>
+              <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              <span className="text-[10px] font-black uppercase text-amber-500">Alert-only</span>
             </div>
          </div>
       </div>

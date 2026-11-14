@@ -5,6 +5,8 @@ import asyncio
 import datetime
 import pytz
 
+from utils.antinuke_alerts import send_antinuke_alert
+
 class AntiWebhookCreate(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -91,32 +93,28 @@ class AntiWebhookCreate(commands.Cog):
                 return
 
             try:
-                await self.ban_executor_and_delete_webhook(guild, executor, entry.target)
+                await self.delete_webhook_and_alert(guild, executor, entry.target)
                 await asyncio.sleep(3)
             except Exception:
                 return
 
-    async def ban_executor_and_delete_webhook(self, guild, executor, webhook):
-        retries = 3
-        while retries > 0:
+    async def delete_webhook_and_alert(self, guild, executor, webhook):
+        deleted = False
+        if webhook:
             try:
-                await guild.ban(executor, reason="Webhook Create | Unwhitelisted User")
-                if webhook:
-                    await webhook.delete(reason="Webhook Created by unwhitelisted user")
-                return
+                await webhook.delete(reason="Webhook created by unwhitelisted user")
+                deleted = True
             except discord.Forbidden:
-                return
-            except discord.HTTPException as e:
-                if e.status == 429:
-                    retry_after = e.response.headers.get('Retry-After')
-                    if retry_after:
-                        await asyncio.sleep(float(retry_after))
-                else:
-                    return
-            except discord.errors.RateLimited as e:
-                await asyncio.sleep(e.retry_after)
-                retries -= 1
-            except Exception:
-                return
+                pass
+            except discord.HTTPException:
+                pass
 
-            retries -= 1
+        await send_antinuke_alert(
+            self.bot,
+            guild,
+            "Unauthorized webhook creation",
+            "A webhook was created by a user who is not whitelisted for webhook management."
+            + (" The webhook was deleted." if deleted else ""),
+            executor=executor,
+            fields=[("Webhook", getattr(webhook, "name", "unknown"))],
+        )

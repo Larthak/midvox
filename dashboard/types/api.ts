@@ -275,3 +275,7 @@ export interface AdminConfigUpdate {
   maintenance_mode?: boolean;
   global_notification?: string | null;
 }
+
+export interface AdminNotification {
+  global_notification: string | null;
+}

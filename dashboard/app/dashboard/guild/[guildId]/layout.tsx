@@ -1,7 +1,11 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { getServerSession } from "next-auth/next";
+import { redirect } from "next/navigation";
 import { ChevronRight, Server, Settings, ShieldAlert } from "lucide-react";
+import { authOptions } from "@/lib/auth";
+import { canManageGuild, fetchUserGuilds } from "@/lib/discord-access";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 
@@ -14,14 +18,35 @@ interface GuildLayoutProps {
 
 export default async function GuildLayout({ children, params }: GuildLayoutProps) {
   const guildId = params.guildId;
+
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    redirect("/");
+  }
+
   let guild;
   let error = null;
 
-  try {
-    guild = await api.getGuildDetails(guildId);
-  } catch (err: any) {
-    console.error("Failed to fetch guild details:", err);
-    error = err.message || "Failed to load guild data.";
+  const accessToken = (session as any).accessToken as string | undefined;
+  if (!accessToken) {
+    error = "Sign in with Discord again to manage this server.";
+  } else {
+    const discordGuilds = await fetchUserGuilds(accessToken);
+    if (!discordGuilds) {
+      error = "Could not verify your Discord server permissions.";
+    } else {
+      const guildAccess = discordGuilds.find((item) => item.id === guildId);
+      if (!guildAccess || !canManageGuild(guildAccess)) {
+        error = "You need Manage Server or Administrator permission for this server.";
+      } else {
+        try {
+          guild = await api.getGuildDetails(guildId);
+        } catch (err: any) {
+          console.error("Failed to fetch guild details:", err);
+          error = err.message || "Failed to load guild data.";
+        }
+      }
+    }
   }
 
   if (error || !guild) {

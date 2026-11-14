@@ -148,15 +148,12 @@ from .automod.anti_mass_mention import AntiMassMention
 from .automod.anti_emoji_spam import AntiEmojiSpam
 
 
-from .moderation.ban import Ban
-from .moderation.unban import Unban
 from .moderation.timeout import Mute
 from .moderation.unmute import Unmute
 from .moderation.lock import Lock
 from .moderation.unlock import Unlock
 from .moderation.hide import Hide
 from .moderation.unhide import Unhide
-from .moderation.kick import Kick
 from .moderation.warn import Warn
 from .moderation.role import Role
 from .moderation.message import Message
@@ -178,7 +175,7 @@ async def setup(bot: midvox):
         AntiChannelCreate, AntiChannelDelete, AntiChannelUpdate, AntiEveryone, AntiGuildUpdate,
         AntiIntegration, AntiKick, AntiPrune, AntiRoleCreate, AntiRoleDelete,
         AntiRoleUpdate, AntiWebhookUpdate, AntiWebhookCreate,
-        AntiWebhookDelete, AntiSpam, AntiCaps, AntiLink, AntiInvite, AntiMassMention, Stats, Status, NoPrefix, AutoReaction, AutoReactListener, Ban, Unban, Mute, Unmute, Lock, Unlock, Hide, Unhide, Kick, Warn, Role, Message, Moderation, TopCheck, Snipe, Global, QR, VanityRoles, ReactionRoles, Messages, TranslateCog, FastGreet, Jail, inviteTracker,Counting,AI
+        AntiWebhookDelete, AntiSpam, AntiCaps, AntiLink, AntiInvite, AntiMassMention, Stats, Status, NoPrefix, AutoReaction, AutoReactListener, Mute, Unmute, Lock, Unlock, Hide, Unhide, Warn, Role, Message, Moderation, TopCheck, Snipe, Global, QR, VanityRoles, ReactionRoles, Messages, TranslateCog, FastGreet, Jail, inviteTracker,Counting,AI
     ]
 
 
@@ -337,15 +334,12 @@ async def setup(bot: midvox):
 
 
 
-  await bot.add_cog(Ban(bot))
-  await bot.add_cog(Unban(bot))
   await bot.add_cog(Mute(bot))
   await bot.add_cog(Unmute(bot))
   await bot.add_cog(Lock(bot))
   await bot.add_cog(Unlock(bot))
   await bot.add_cog(Hide(bot))
   await bot.add_cog(Unhide(bot))
-  await bot.add_cog(Kick(bot))
   await bot.add_cog(Warn(bot))
   await bot.add_cog(Role(bot))
   await bot.add_cog(Message(bot))

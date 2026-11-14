@@ -5,6 +5,8 @@ import datetime
 import asyncio
 import pytz
 
+from utils.antinuke_alerts import send_antinuke_alert
+
 class AntiPrune(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -57,34 +59,13 @@ class AntiPrune(commands.Cog):
             if extra_owner_status:
                 return
 
-            await self.ban_executor(guild, executor)
+            await self.alert_executor(guild, executor)
 
-    async def ban_executor(self, guild, executor):
-        retries = 3
-        while retries > 0:
-            try:
-                await guild.ban(executor, reason="Member Prune | Unwhitelisted User")
-                return
-            except discord.Forbidden:
-                print(f"Failed to ban {executor.id} due to missing permissions.")
-                return
-            except discord.HTTPException as e:
-                if e.status == 429:
-                    retry_after = e.response.headers.get('Retry-After')
-                    if retry_after:
-                        retry_after = float(retry_after)
-                        print(f"Rate limit encountered. Retrying after {retry_after} seconds.")
-                        await asyncio.sleep(retry_after)
-                        retries -= 1
-                else:
-                    print(f"HTTPException encountered: {e}")
-                    return
-            except discord.errors.RateLimited as e:
-                print(f"Rate limit encountered while banning: {e}. Retrying in {e.retry_after} seconds.")
-                await asyncio.sleep(e.retry_after)
-                retries -= 1
-            except Exception as e:
-                print(f"An unexpected error occurred while banning {executor.id}: {e}")
-                return
-
-        print(f"Failed to ban {executor.id} after multiple attempts due to rate limits.")
+    async def alert_executor(self, guild, executor):
+        await send_antinuke_alert(
+            self.bot,
+            guild,
+            "Unauthorized member prune",
+            "A member prune was performed by a user who is not whitelisted for pruning.",
+            executor=executor,
+        )

@@ -5,6 +5,8 @@ import aiosqlite
 from datetime import timedelta
 import asyncio
 
+from utils.automod import normalize_punishment
+
 class AntiMassMention(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -85,21 +87,17 @@ class AntiMassMention(commands.Cog):
 
         mention_count = message.content.count("<@")
         if mention_count >= self.mass_mention_threshold:
-            punishment = await self.get_punishment(guild_id)
-            action_taken = None
+            punishment = normalize_punishment(await self.get_punishment(guild_id))
+            action_taken = "Message deleted"
             reason = f"Mass Mention ({mention_count} mentions)"
 
             try:
-                if punishment == "Mute":
+                if punishment == "mute":
                     timeout_duration = discord.utils.utcnow() + timedelta(minutes=3)
                     await user.edit(timed_out_until=timeout_duration, reason=reason)
                     action_taken = "Muted for 3 minutes"
-                elif punishment == "Kick":
-                    await user.kick(reason=reason)
-                    action_taken = "Kicked"
-                elif punishment == "Ban":
-                    await user.ban(reason=reason)
-                    action_taken = "Banned"
+                elif punishment == "warn":
+                    action_taken = "Warned"
                 await message.delete()
 
                 simple_embed = discord.Embed(title="Automod Anti Mass-Mention", color=0x8A9A5B)

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from api.dependencies import get_bot
-from api.schemas import AdminStats, AdminNodeStatus, AdminConfig, AdminConfigUpdate
+from api.schemas import AdminStats, AdminNodeStatus, AdminConfig, AdminConfigUpdate, AdminNotification
 from typing import TYPE_CHECKING
 import os, aiosqlite
 
@@ -86,6 +86,23 @@ async def get_admin_stats(bot: "midvox" = Depends(get_bot)):
         db_size=db_size_str,
         nodes=nodes
     )
+
+@router.get("/notification", response_model=AdminNotification)
+async def get_admin_notification():
+    """Return only the public dashboard announcement.
+
+    This endpoint is intentionally narrower than ``/config`` so every signed-in
+    user can read the announcement without exposing maintenance state or
+    administrative settings.
+    """
+    await init_db()
+    async with aiosqlite.connect(CONFIG_DB) as db:
+        async with db.execute("SELECT value FROM config WHERE key = 'global_notification'") as cursor:
+            row = await cursor.fetchone()
+
+    value = row[0] if row and row[0] else None
+    return AdminNotification(global_notification=value)
+
 
 @router.get("/config", response_model=AdminConfig)
 async def get_admin_config():

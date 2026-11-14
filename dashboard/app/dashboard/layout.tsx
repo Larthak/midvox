@@ -69,7 +69,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     const fetchNotification = async () => {
       try {
-        const config = await api.getAdminConfig();
+        const config = await api.getAdminNotification();
         setGlobalNotification(config.global_notification);
       } catch {}
     };

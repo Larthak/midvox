@@ -375,10 +375,12 @@ class General(commands.Cog):
   @ignore_check()
   @commands.cooldown(1, 3, commands.BucketType.user)
   async def invite(self, ctx: commands.Context):
+      # Curated permissions: no Administrator, Ban Members, or Kick Members.
+      permissions = 1644904836849
       invite_text = (
           "```Empower your server with blazing-fast features and 24/7 support!```\n"
           f"{MIDVOXLINKS} **Quick Actions**\n"
-          f">>> **[Invite {BotName}](https://discord.com/oauth2/authorize?client_id=1396114795102470196&permissions=8&integration_type=0&scope=bot+applications.commands)**\n"
+          f">>> **[Invite {BotName}](https://discord.com/oauth2/authorize?client_id={ctx.bot.user.id}&permissions={permissions}&integration_type=0&scope=bot+applications.commands)**\n"
           "**[Support Server](https://github.com/suneo779/midvox)**"
       )
       await ctx.send(view=CV2(f"{MIDVOXCONNECTION} {BotName} Integration Hub!", invite_text))

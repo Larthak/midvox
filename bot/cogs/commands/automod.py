@@ -6,6 +6,7 @@ from utils.Tools import *
 from utils.cv2 import CV2, build_container, card_text_items
 from discord.ui import LayoutView, TextDisplay, Separator, Container, ActionRow
 from utils.config import *
+from utils.automod import normalize_punishment
 
 
 class ShowRules(LayoutView):
@@ -100,7 +101,7 @@ class Automod(commands.Cog):
 
     async def update_punishments(self, guild_id, event, punishment):
         async with aiosqlite.connect("db/automod.db") as db:
-            await db.execute("INSERT OR REPLACE INTO automod_punishments (guild_id, event, punishment) VALUES (?, ?, ?)", (guild_id, event, punishment))
+            await db.execute("INSERT OR REPLACE INTO automod_punishments (guild_id, event, punishment) VALUES (?, ?, ?)", (guild_id, event, normalize_punishment(punishment)))
             await db.commit()
 
     async def get_current_punishments(self, guild_id):
@@ -109,7 +110,8 @@ class Automod(commands.Cog):
                 "SELECT event, punishment FROM automod_punishments WHERE guild_id = ? AND event != 'Anti NSFW link'",
                 (guild_id,)
             ) as cursor:
-                return await cursor.fetchall()
+                rows = await cursor.fetchall()
+        return [(event, normalize_punishment(punishment)) for event, punishment in rows]
 
     async def is_anti_nsfw_enabled(self, guild_id):
         async with aiosqlite.connect("db/automod.db") as db:
@@ -336,7 +338,7 @@ class Automod(commands.Cog):
         current_punishments = await self.get_current_punishments(guild_id)
         punishments_list = "\n".join([f"**{event}**: {punishment or 'None'}" for event, punishment in current_punishments])
         view_title = f"Current Automod Punishments for {ctx.guild.name}"
-        view_desc = punishments_list + "\n\nKeep the default punishment (Mute) to prevent server raids without kicking or banning raiders"
+        view_desc = punishments_list + "\n\nAvailable punishments: **Delete**, **Warn**, and **Mute**. Member removal is not available."
 
         events = [event for event, _ in current_punishments]
         select = discord.ui.Select(placeholder="Select events to update punishment", options=[
@@ -352,8 +354,8 @@ class Automod(commands.Cog):
             await interaction.response.send_message("You selected: " + ", ".join(selected_events))
 
             punishment_buttons = discord.ui.View()
-            for punishment in ["Mute", "Kick", "Ban"]:
-                button = discord.ui.Button(label=punishment, style=discord.ButtonStyle.danger)
+            for punishment in ["Delete", "Warn", "Mute"]:
+                button = discord.ui.Button(label=punishment, style=discord.ButtonStyle.secondary)
 
                 async def punishment_callback(button_interaction, selected_events=selected_events, punishment=punishment):
                     if button_interaction.user != ctx.author:

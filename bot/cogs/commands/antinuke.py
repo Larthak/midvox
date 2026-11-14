@@ -8,6 +8,23 @@ from utils.cv2 import CV2, build_container
 from utils.config import *
 
 
+ANTINUKE_BOT_PERMISSIONS = (
+  "view_audit_log",
+  "manage_guild",
+  "manage_channels",
+  "manage_roles",
+  "manage_webhooks",
+  "manage_messages",
+  "moderate_members",
+)
+
+
+def _missing_antinuke_permissions(guild):
+  return [
+    name.replace("_", " ").title()
+    for name in ANTINUKE_BOT_PERMISSIONS
+    if not getattr(guild.me.guild_permissions, name, False)
+  ]
 
 
 class Antinuke(commands.Cog):
@@ -44,7 +61,7 @@ class Antinuke(commands.Cog):
   @commands.cooldown(1, 4, commands.BucketType.user)
   @commands.max_concurrency(1, per=commands.BucketType.default, wait=False)
   @commands.guild_only()
-  @commands.has_permissions(administrator=True)
+  @commands.has_permissions(manage_guild=True)
   async def antinuke(self, ctx, option: str = None):
     guild_id = ctx.guild.id
     pre=ctx.prefix
@@ -68,12 +85,12 @@ class Antinuke(commands.Cog):
     if option is None:
       view = CV2(
         f"{ZSAFE} {BRAND_NAME} Security",
-        "**Antinuke Defense Mode** — Protect your server from harmful admin actions with smart automated security protocols.",
+        "**Antinuke Defense Mode** — Detect harmful admin actions, alert your team, and repair damaged server resources.",
         "**Core Functionalities**\n"
-        "• Auto-ban malicious admin activities instantly.\n"
+        "• Alerts you to unauthorized bans, kicks, and destructive admin actions.\n"
+        "• Automatic recovery of deleted channels, roles, webhooks, and changed settings.\n"
         "• Whitelist protection for trusted users.\n"
-        "• Live monitoring of admin actions.\n"
-        "• Rapid threat detection & neutralization.",
+        "• Live audit-log monitoring with no automatic member removal.",
         "**Configuration Panel**\n"
         f"{TICK} Enable Protection: `antinuke enable`\n"
         f"{CROSS} Disable Protection: `antinuke disable`"
@@ -93,10 +110,12 @@ class Antinuke(commands.Cog):
         setup_message = await ctx.send(view=setup_view)
 
 
-        if not ctx.guild.me.guild_permissions.administrator:
+        missing_permissions = _missing_antinuke_permissions(ctx.guild)
+        if missing_permissions:
           view = CV2(f"Antinuke Setup {EMOTE}",
             f"{TICK} | Initializing Quick Setup!\n"
-            f"{CROSS} | **Ops! It seems I Don't Have Administrator Perm To enable antinuke**.")
+            f"{CROSS} | **MidVox is missing these bot permissions:** {', '.join(missing_permissions)}.\n"
+            "Grant them to my role in Server Settings > Roles, then run this command again.")
           await setup_message.edit(view=view)
           return
 
@@ -124,9 +143,9 @@ class Antinuke(commands.Cog):
 
         view = CV2(
           f"Antinuke Setup {EMOTE}",
-          f"{TICK} Administrator permission verified.\n"
+          f"{TICK} Required bot permissions verified.\n"
           f"{TICK} Role hierarchy verified.\n"
-          f"{TICK} Enabling rollback and threat response modules..."
+          f"{TICK} Enabling detection, alerting, and recovery modules..."
         )
         await setup_message.edit(view=view)
 
@@ -156,7 +175,7 @@ class Antinuke(commands.Cog):
           f"{TICK} **Auto Recovery**"
         )
 
-        punishment_btn = Button(label="Show Punishment Type", style=discord.ButtonStyle.secondary)
+        punishment_btn = Button(label="Show Alert Behavior", style=discord.ButtonStyle.secondary)
         punishment_btn.callback = self._show_punishment
 
         result_view = LayoutView(timeout=None)
@@ -164,7 +183,7 @@ class Antinuke(commands.Cog):
           build_container(
             TextDisplay(f"**{ZSETTINGS} Security Settings For {ctx.guild.name}**"),
             Separator(visible=True),
-            TextDisplay("Tip: For optimal functionality, please ensure that my role has **Administration** permissions and is positioned at the **Top** of the roles list."),
+            TextDisplay("Tip: Give my role View Audit Log, Manage Server, Manage Channels, Manage Roles, Manage Webhooks, Manage Messages, and Moderate Members, then place it above the roles it protects."),
             Separator(visible=True),
             TextDisplay(f"**Modules Enabled**\n{modules}"),
             Separator(visible=True),
@@ -195,19 +214,19 @@ class Antinuke(commands.Cog):
 
   async def _show_punishment(self, interaction: discord.Interaction):
     view = CV2(
-      "Punishment Types for Unwhitelisted Admins/Mods",
-      "**Anti Ban:** Ban\n"
-      "**Anti Kick:** Ban\n"
-      "**Anti Bot:** Ban the bot Inviter\n"
-      "**Anti Channel Create/Delete/Update:** Ban\n"
-      "**Anti Everyone/Here:** Remove the message & 1 hour timeout\n"
-      "**Anti Role Create/Delete/Update:** Ban\n"
-      "**Anti Member Update:** Ban\n"
-      "**Anti Guild Update:** Ban\n"
-      "**Anti Integration:** Ban\n"
-      "**Anti Webhook Create/Delete/Update:** Ban\n"
-      "**Anti Prune:** Ban\n"
-      "**Auto Recovery:** Automatically recover damaged channels, roles, and settings",
-      "Note: In the case of member updates, action will be taken only if the role contains dangerous permissions such as Ban Members, Administrator, Manage Guild, Manage Channels, Manage Roles, Manage Webhooks, or Mention Everyone"
+      "Anti-Nuke Alert Behavior",
+      "**Anti-Nuke never bans, kicks, or unbans members.**\n\n"
+      "**Anti Ban / Anti Kick:** Alert only\n"
+      "**Anti Bot:** Alert only\n"
+      "**Anti Channel Create/Delete/Update:** Alert and repair when possible\n"
+      "**Anti Everyone/Here:** Remove the message and apply a 1 hour timeout\n"
+      "**Anti Role Create/Delete/Update:** Alert and repair when possible\n"
+      "**Anti Member Update:** Alert and remove the dangerous role when possible\n"
+      "**Anti Guild Update:** Alert and revert settings when possible\n"
+      "**Anti Integration:** Alert and clear unauthorized integrations when possible\n"
+      "**Anti Webhook Create/Delete/Update:** Alert and remove the webhook when possible\n"
+      "**Anti Prune:** Alert only\n"
+      "**Auto Recovery:** Restore damaged channels, roles, webhooks, and settings",
+      "Note: Member updates are flagged only when the role contains dangerous permissions such as Ban Members, Kick Members, Administrator, Manage Guild, Manage Channels, Manage Roles, Manage Webhooks, or Mention Everyone. Review the audit log and whitelist when an alert fires."
     )
     await interaction.response.send_message(view=view, ephemeral=True)

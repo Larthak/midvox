@@ -5,6 +5,8 @@ import asyncio
 import datetime
 import pytz
 
+from utils.antinuke_alerts import send_antinuke_alert
+
 class AntiKick(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -17,7 +19,7 @@ class AntiKick(commands.Cog):
             return await cursor.fetchone() is not None
 
     async def fetch_audit_logs(self, guild, action, target_id):
-        if not guild.me.guild_permissions.ban_members:
+        if not guild.me.guild_permissions.view_audit_log:
             return None
         try:
             async for entry in guild.audit_logs(action=action, limit=5):
@@ -84,28 +86,15 @@ class AntiKick(commands.Cog):
             if whitelist_status and whitelist_status[0]:
                 return
 
-        await self.ban_executor(member.guild, executor)
+        await self.alert_executor(member.guild, executor, member)
         await asyncio.sleep(2)
 
-    async def ban_executor(self, guild, executor):
-        retries = 3
-        while retries > 0:
-            try:
-                await guild.ban(executor, reason="Member Kick | Unwhitelisted User")
-                return
-            except discord.Forbidden:
-                return
-            except discord.HTTPException as e:
-                if e.status == 429:
-                    retry_after = e.response.headers.get('Retry-After')
-                    if retry_after:
-                        await asyncio.sleep(float(retry_after))
-                        retries -= 1
-                else:
-                    return
-            except discord.errors.RateLimited as e:
-                await asyncio.sleep(e.retry_after)
-                retries -= 1
-            except Exception:
-                return
-        return
+    async def alert_executor(self, guild, executor, member):
+        await send_antinuke_alert(
+            self.bot,
+            guild,
+            "Unauthorized member kick",
+            "A member was removed by a user who is not whitelisted for kicks.",
+            executor=executor,
+            fields=[("Removed member", f"{member.mention} (`{member.id}`)")],
+        )

@@ -478,33 +478,6 @@ class Extra(commands.Cog):
                           ctx=ctx)
     await paginator.paginate()
 
-  @__list_.command(name="bans", help= "List of all banned members in Guild", aliases=["ban"], with_app_command=True)
-  @blacklist_check()
-  @ignore_check()
-  @commands.cooldown(1, 3, commands.BucketType.user)
-  @commands.has_permissions(view_audit_log=True)
-  @commands.bot_has_permissions(view_audit_log=True)
-  async def list_ban(self, ctx):
-    bans = [member async for member in ctx.guild.bans()]
-    if len(bans) == 0:
-      return await ctx.reply("There aren't any banned users in this guild.", mention_author=False)
-    else:
-      mems = ([
-      member async for member in ctx.guild.bans()
-    ])
-      guild = ctx.guild
-      entries = [
-      f"`#{no}.` {mem}"
-      for no, mem in enumerate(mems, start=1)
-    ]
-      paginator = Paginator(source=DescriptionEmbedPaginator(
-      entries=entries,
-      title=f"Banned Users in {guild.name} - {len(bans)}",
-      description="",
-      per_page=10),
-                          ctx=ctx)
-      await paginator.paginate()
-
   @__list_.command(
     name="inrole",
     aliases=["inside-role"],

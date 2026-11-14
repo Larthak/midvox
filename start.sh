@@ -34,10 +34,10 @@ if printf '%s' "$TOKEN_CLIENT_ID" | grep -Eq '^[0-9]+$'; then
 fi
 
 # Fail before starting long-lived sidecars when Railway is missing required
-# runtime configuration. NEXT_PUBLIC_DASHBOARD_API_KEY remains required until
-# the dashboard proxy is migrated fully to a private server-side credential.
+# runtime configuration. The dashboard proxy injects DASHBOARD_API_KEY
+# server-side, so no NEXT_PUBLIC_ copy of the key is needed.
 REQUIRED_ENV=(
-  TOKEN OWNER_IDS DASHBOARD_API_KEY NEXT_PUBLIC_DASHBOARD_API_KEY
+  TOKEN OWNER_IDS DASHBOARD_API_KEY
   NEXTAUTH_SECRET DISCORD_CLIENT_ID DISCORD_CLIENT_SECRET
 )
 MISSING_ENV=()

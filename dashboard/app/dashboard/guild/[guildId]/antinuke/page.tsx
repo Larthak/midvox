@@ -20,7 +20,7 @@ export default async function AntiNukePage({ params }: { params: { guildId: stri
             <ShieldAlert className="h-6 w-6 text-red-500" />
             Anti-Nuke Protection
           </h2>
-          <p className="text-neutral-400 mt-1">Protect your server from malicious mass-deletion, mass-banning, and other destructive actions.</p>
+          <p className="text-neutral-400 mt-1">Detect destructive actions such as mass-deletion, rogue bans, and permission abuse, with automatic recovery and no member removal.</p>
         </div>
       </div>
 

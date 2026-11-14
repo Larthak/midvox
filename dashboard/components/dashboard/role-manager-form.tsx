@@ -22,7 +22,6 @@ const PERMISSION_GROUPS = [
     ["manage_guild", "Manage Server"],
   ]},
   { name: "Members", permissions: [
-    ["kick_members", "Kick Members"], ["ban_members", "Ban Members"],
     ["moderate_members", "Timeout Members"],
   ]},
   { name: "Text", permissions: [
@@ -43,6 +42,10 @@ const PERMISSION_GROUPS = [
   { name: "Advanced", permissions: [["administrator", "Administrator"]] },
 ] as const;
 
+const DISALLOWED_PERMISSIONS = new Set(["kick_members", "ban_members"]);
+const sanitizePermissions = (values: string[]) =>
+  values.filter(permission => !DISALLOWED_PERMISSIONS.has(permission));
+
 const ALL_VISIBLE = PERMISSION_GROUPS.flatMap(group => group.permissions.map(([id]) => id));
 const NORMAL = [
   "view_channel", "send_messages", "send_messages_in_threads", "create_public_threads",
@@ -52,8 +55,8 @@ const NORMAL = [
 ];
 const HIGH = Array.from(new Set([
   ...NORMAL, "create_private_threads", "manage_threads", "manage_nicknames", "manage_messages",
-  "manage_channels", "manage_roles", "manage_webhooks", "view_audit_log", "kick_members",
-  "ban_members", "moderate_members", "mute_members", "deafen_members", "move_members",
+  "manage_channels", "manage_roles", "manage_webhooks", "view_audit_log",
+  "moderate_members", "mute_members", "deafen_members", "move_members",
 ]));
 
 const PRESETS = [
@@ -112,7 +115,7 @@ export function RoleManagerForm({ guildId, initialRoles }: { guildId: string; in
     if (!role) return;
     setName(role.name);
     setColor(hexColor(role.color));
-    setPermissions(role.permissions || []);
+    setPermissions(sanitizePermissions(role.permissions || []));
     setPreset("custom");
     setCustomized(true);
     setHoist(role.hoist);
@@ -129,7 +132,7 @@ export function RoleManagerForm({ guildId, initialRoles }: { guildId: string; in
       name: name.trim(),
       color: parseInt(color.replace("#", ""), 16),
       preset,
-      permissions: customized || preset === "custom" ? permissions : undefined,
+      permissions: customized || preset === "custom" ? sanitizePermissions(permissions) : undefined,
       hoist,
       mentionable,
       below_role_id: belowRoleId || null,
@@ -210,6 +213,10 @@ export function RoleManagerForm({ guildId, initialRoles }: { guildId: string; in
             All Permissions includes Administrator and bypasses channel permission restrictions. Use it only for fully trusted staff.
           </div>
         )}
+
+        <p className="text-xs text-[var(--panel-muted)]">
+          Ban Members and Kick Members are intentionally unavailable. MidVox cannot grant or use member-removal permissions.
+        </p>
 
         <div className="space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">

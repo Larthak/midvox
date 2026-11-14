@@ -5,6 +5,8 @@ import asyncio
 import datetime
 import pytz
 
+from utils.antinuke_alerts import send_antinuke_alert
+
 class AntiIntegration(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -88,29 +90,17 @@ class AntiIntegration(commands.Cog):
             if whitelist_status and whitelist_status[0]:
                 return
 
-            await self.ban_executor(guild, executor)
+            await self.revert_and_alert(guild, executor)
 
-    async def ban_executor(self, guild, executor):
-        retries = 3
-        while retries > 0:
-            try:
-                await guild.ban(executor, reason="Integration Create | Unwhitelisted User")
-                return
-            except discord.Forbidden:
-                return
-            except discord.HTTPException as e:
-                if e.status == 429:
-                    retry_after = e.response.headers.get('Retry-After')
-                    if retry_after:
-                        await asyncio.sleep(float(retry_after))
-                        retries -= 1
-                else:
-                    return
-            except discord.errors.RateLimited as e:
-                await asyncio.sleep(e.retry_after)
-                retries -= 1
-            except Exception:
-                return
+    async def revert_and_alert(self, guild, executor):
+        await self.revert_integration_changes(guild)
+        await send_antinuke_alert(
+            self.bot,
+            guild,
+            "Unauthorized integration change",
+            "A guild integration was changed by a user who is not whitelisted for webhook and integration management. Integrations were cleared.",
+            executor=executor,
+        )
 
     async def revert_integration_changes(self, guild):
         retries = 3

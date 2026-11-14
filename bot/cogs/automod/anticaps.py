@@ -5,6 +5,8 @@ import aiosqlite
 import asyncio
 from datetime import timedelta
 
+from utils.automod import normalize_punishment
+
 class AntiCaps(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -90,21 +92,17 @@ class AntiCaps(commands.Cog):
             caps_percentage = (caps_count / len(message.content)) * 100
 
             if caps_percentage > self.caps_threshold:
-                punishment = await self.get_punishment(guild_id)
-                action_taken = None
+                punishment = normalize_punishment(await self.get_punishment(guild_id))
+                action_taken = "Message deleted"
                 reason = "Excessive Caps"
 
                 try:
-                    if punishment == "Mute":
+                    if punishment == "mute":
                         timeout_duration = discord.utils.utcnow() + timedelta(minutes=1)
-                        await user.edit(timed_out_until=timeout_duration, reason="Excessive Caps")
-                        action_taken = "Muted for 1 minutes"
-                    elif punishment == "Kick":
-                        await user.kick(reason="Excessive Caps")
-                        action_taken = "Kicked"
-                    elif punishment == "Ban":
-                        await user.ban(reason="Excessive Caps")
-                        action_taken = "Banned"
+                        await user.edit(timed_out_until=timeout_duration, reason=reason)
+                        action_taken = "Muted for 1 minute"
+                    elif punishment == "warn":
+                        action_taken = "Warned"
                     await message.delete()
 
                     simple_embed = discord.Embed(title="Automod Anti-Caps", color=0x8A9A5B)

@@ -5,6 +5,8 @@ import asyncio
 import datetime
 import pytz
 
+from utils.antinuke_alerts import send_antinuke_alert
+
 class AntiMemberUpdate(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -17,7 +19,7 @@ class AntiMemberUpdate(commands.Cog):
             return await cursor.fetchone() is not None
 
     async def fetch_audit_logs(self, guild, action, target_id):
-        if not guild.me.guild_permissions.ban_members:
+        if not guild.me.guild_permissions.view_audit_log:
             return None
         try:
             async for entry in guild.audit_logs(action=action, limit=5):
@@ -99,30 +101,31 @@ class AntiMemberUpdate(commands.Cog):
             new_role.permissions.mention_everyone,
             new_role.permissions.manage_webhooks
         ]):
-            await self.take_action_and_revert(after, executor, new_role)
+            await self.revert_and_alert(after, executor, new_role)
             await asyncio.sleep(3)
 
-    async def take_action_and_revert(self, member, executor, new_role):
-        retries = 3
+    async def revert_and_alert(self, member, executor, new_role):
         reason = "Member Role Update with Dangerous Permissions | Unwhitelisted User"
-        while retries > 0:
-            try:
-                await member.remove_roles(new_role, reason=reason)
-                await member.guild.ban(executor, reason=reason)
-                return
-            except discord.Forbidden:
-                return
-            except discord.HTTPException as e:
-                if e.status == 429:
-                    retry_after = e.response.headers.get('Retry-After')
-                    if retry_after:
-                        await asyncio.sleep(float(retry_after))
-                        retries -= 1
-                else:
-                    return
-            except discord.errors.RateLimited as e:
-                await asyncio.sleep(e.retry_after)
-                retries -= 1
-            except Exception:
-                return
-        return
+        removed = False
+        try:
+            await member.remove_roles(new_role, reason=reason)
+            removed = True
+        except discord.Forbidden:
+            pass
+        except discord.HTTPException:
+            pass
+        except Exception:
+            pass
+
+        await send_antinuke_alert(
+            self.bot,
+            member.guild,
+            "Dangerous role assignment",
+            "A member received a role with dangerous permissions from a user who is not whitelisted for member updates."
+            + (" The role was removed." if removed else ""),
+            executor=executor,
+            fields=[
+                ("Member", f"{member.mention} (`{member.id}`)"),
+                ("Role", f"{new_role.name} (`{new_role.id}`)"),
+            ],
+        )

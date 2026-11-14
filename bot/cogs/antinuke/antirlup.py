@@ -5,6 +5,8 @@ import asyncio
 import datetime
 import pytz
 
+from utils.antinuke_alerts import send_antinuke_alert
+
 class AntiRoleUpdate(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -17,7 +19,7 @@ class AntiRoleUpdate(commands.Cog):
             return await cursor.fetchone() is not None
 
     async def fetch_audit_logs(self, guild, action, target_id):
-        if not guild.me.guild_permissions.ban_members:
+        if not guild.me.guild_permissions.view_audit_log:
             return None
         try:
             async for entry in guild.audit_logs(action=action, limit=5):
@@ -86,59 +88,34 @@ class AntiRoleUpdate(commands.Cog):
             if extra_owner_status:
                 return
 
-        await self.ban_executor_and_revert_role_update(guild, executor, before, after)
+        await self.revert_role_and_alert(guild, executor, before, after)
         await asyncio.sleep(3)
 
-    async def ban_executor_and_revert_role_update(self, guild, executor, before, after):
-        retries = 3
-        while retries > 0:
-            try:
-                await self.ban_executor(guild, executor)
-                await after.edit(
-                    name=before.name,
-                    permissions=before.permissions,
-                    color=before.color,
-                    hoist=before.hoist,
-                    mentionable=before.mentionable,
-                    reason="Role updated by unwhitelisted user"
-                )
-                return
-            except discord.Forbidden:
-                print(f"Failed to ban {executor.id} or revert the role update {before.id} due to missing permissions.")
-                return
-            except discord.HTTPException as e:
-                if e.status == 429:
-                    retry_after = e.response.headers.get('Retry-After')
-                    if retry_after:
-                        await asyncio.sleep(float(retry_after))
-                        retries -= 1
-                else:
-                    return
-            except discord.errors.RateLimited as e:
-                await asyncio.sleep(e.retry_after)
-                retries -= 1
-            except Exception:
-                return
+    async def revert_role_and_alert(self, guild, executor, before, after):
+        restored = False
+        try:
+            await after.edit(
+                name=before.name,
+                permissions=before.permissions,
+                color=before.color,
+                hoist=before.hoist,
+                mentionable=before.mentionable,
+                reason="Role updated by unwhitelisted user"
+            )
+            restored = True
+        except discord.Forbidden:
+            pass
+        except discord.HTTPException:
+            pass
+        except Exception:
+            pass
 
-    async def ban_executor(self, guild, executor):
-        retries = 3
-        while retries > 0:
-            try:
-                await guild.ban(executor, reason="Role Update | Unwhitelisted User")
-                return
-            except discord.Forbidden:
-                print(f"Failed to ban {executor.id} due to missing permissions.")
-                return
-            except discord.HTTPException as e:
-                if e.status == 429:
-                    retry_after = e.response.headers.get('Retry-After')
-                    if retry_after:
-                        await asyncio.sleep(float(retry_after))
-                        retries -= 1
-                else:
-                    return
-            except discord.errors.RateLimited as e:
-                await asyncio.sleep(e.retry_after)
-                retries -= 1
-            except Exception:
-                return
+        await send_antinuke_alert(
+            self.bot,
+            guild,
+            "Unauthorized role update",
+            "A role was modified by a user who is not whitelisted for role updates."
+            + (" The previous role settings were restored." if restored else ""),
+            executor=executor,
+            fields=[("Role", f"{before.name} (`{before.id}`)")],
+        )

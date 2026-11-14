@@ -5,6 +5,8 @@ import asyncio
 import datetime
 import pytz
 
+from utils.antinuke_alerts import send_antinuke_alert
+
 class AntiWebhookDelete(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -91,30 +93,17 @@ class AntiWebhookDelete(commands.Cog):
                 return
 
             try:
-                await self.ban_executor(guild, executor)
+                await self.alert_executor(guild, executor, entry.target)
                 await asyncio.sleep(3)
             except Exception:
                 return
 
-    async def ban_executor(self, guild, executor):
-        retries = 3
-        while retries > 0:
-            try:
-                await guild.ban(executor, reason="Webhook Delete | Unwhitelisted User")
-                return
-            except discord.Forbidden:
-                return
-            except discord.HTTPException as e:
-                if e.status == 429:
-                    retry_after = e.response.headers.get('Retry-After')
-                    if retry_after:
-                        await asyncio.sleep(float(retry_after))
-                else:
-                    return
-            except discord.errors.RateLimited as e:
-                await asyncio.sleep(e.retry_after)
-                retries -= 1
-            except Exception:
-                return
-
-            retries -= 1
+    async def alert_executor(self, guild, executor, webhook):
+        await send_antinuke_alert(
+            self.bot,
+            guild,
+            "Unauthorized webhook deletion",
+            "A webhook was deleted by a user who is not whitelisted for webhook management.",
+            executor=executor,
+            fields=[("Webhook", getattr(webhook, "name", "unknown"))],
+        )

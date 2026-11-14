@@ -20,13 +20,16 @@ import {
   AutoRoleUpdate,
   AdminStats,
   AdminConfig,
-  AdminConfigUpdate
+  AdminConfigUpdate,
+  AdminNotification
 } from "@/types/api";
 
 const BASE_URL = typeof window !== "undefined"
   ? "/api/proxy"
-  : (process.env.API_INTERNAL_URL || "http://localhost:5001/api/v1");
-const API_KEY = process.env.NEXT_PUBLIC_DASHBOARD_API_KEY;
+  : (process.env.API_INTERNAL_URL || "http://127.0.0.1:5001/api/v1");
+// The private key is only read on the server. Browser requests go through the
+// authenticated proxy, which injects the header itself.
+const API_KEY = process.env.DASHBOARD_API_KEY;
 
 class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -42,7 +45,7 @@ async function request<T>(
   const url = `${BASE_URL}${endpoint}`;
 
   const headers = new Headers(options.headers);
-  if (API_KEY) {
+  if (typeof window === "undefined" && API_KEY) {
     headers.set("Authorization", `Bearer ${API_KEY}`);
   }
   headers.set("Content-Type", "application/json");
@@ -248,6 +251,7 @@ export const api = {
   // Admin
   getAdminStats: () => request<AdminStats>("/admin/stats"),
   getAdminConfig: () => request<AdminConfig>("/admin/config"),
+  getAdminNotification: () => request<AdminNotification>("/admin/notification"),
   updateAdminConfig: (data: AdminConfigUpdate) =>
     request<{ status: string }>("/admin/config", {
       method: "PATCH",

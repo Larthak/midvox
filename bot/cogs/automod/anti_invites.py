@@ -6,6 +6,8 @@ import asyncio
 from datetime import timedelta
 import re
 
+from utils.automod import normalize_punishment
+
 class AntiInvite(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -91,21 +93,17 @@ class AntiInvite(commands.Cog):
                 if any(invite.code == invite_code for invite in invite):
                     return
 
-                punishment = await self.get_punishment(guild_id)
-                action_taken = None
+                punishment = normalize_punishment(await self.get_punishment(guild_id))
+                action_taken = "Message deleted"
                 reason = "Posted an invite link"
 
                 try:
-                    if punishment == "Mute":
+                    if punishment == "mute":
                         timeout_duration = discord.utils.utcnow() + timedelta(minutes=12)
-                        await user.edit(timed_out_until=timeout_duration, reason="Posted an invite link")
+                        await user.edit(timed_out_until=timeout_duration, reason=reason)
                         action_taken = "Muted for 12 minutes"
-                    elif punishment == "Kick":
-                        await user.kick(reason="Posted an invite link")
-                        action_taken = "Kicked"
-                    elif punishment == "Ban":
-                        await user.ban(reason="Posted an invite link")
-                        action_taken = "Banned"
+                    elif punishment == "warn":
+                        action_taken = "Warned"
 
                     await message.delete()
 

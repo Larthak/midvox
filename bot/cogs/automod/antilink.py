@@ -6,6 +6,8 @@ import asyncio
 from datetime import timedelta
 import re
 
+from utils.automod import normalize_punishment
+
 class AntiLink(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -93,21 +95,17 @@ class AntiLink(commands.Cog):
             if self.spotify_pattern.search(message.content):
                 return
 
-            punishment = await self.get_punishment(guild_id)
-            action_taken = None
+            punishment = normalize_punishment(await self.get_punishment(guild_id))
+            action_taken = "Message deleted"
             reason = "Posted a link"
 
             try:
-                if punishment == "Mute":
+                if punishment == "mute":
                     timeout_duration = discord.utils.utcnow() + timedelta(minutes=7)
                     await user.edit(timed_out_until=timeout_duration, reason=reason)
                     action_taken = "Muted for 7 minutes"
-                elif punishment == "Kick":
-                    await user.kick(reason=reason)
-                    action_taken = "Kicked"
-                elif punishment == "Ban":
-                    await user.ban(reason=reason)
-                    action_taken = "Banned"
+                elif punishment == "warn":
+                    action_taken = "Warned"
                 await message.delete()
 
                 simple_embed = discord.Embed(title="Automod Anti-Link", color=0x8A9A5B)

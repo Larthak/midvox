@@ -5,6 +5,8 @@ import asyncio
 import datetime
 from datetime import timedelta
 
+from utils.antinuke_alerts import send_antinuke_alert
+
 class AntiEveryone(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -61,6 +63,15 @@ class AntiEveryone(commands.Cog):
                 await self.delete_everyone_messages(message.channel)
             except Exception as e:
                 print(f"An unexpected error occurred while handling {message.author.id}: {e}")
+
+            await send_antinuke_alert(
+                self.bot,
+                guild,
+                "Unauthorized @everyone mention",
+                "A mass mention was posted by a user who is not whitelisted for mentions. The messages were removed and the sender was timed out.",
+                executor=message.author,
+                fields=[("Channel", f"#{message.channel.name} (`{message.channel.id}`)")],
+            )
 
     async def timeout_user(self, user):
         retries = 3

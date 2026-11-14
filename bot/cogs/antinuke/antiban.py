@@ -5,6 +5,8 @@ import asyncio
 import datetime
 import pytz
 
+from utils.antinuke_alerts import send_antinuke_alert
+
 class AntiBan(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -30,7 +32,7 @@ class AntiBan(commands.Cog):
         return True
 
     async def fetch_audit_logs(self, guild, action, target_id):
-        if not guild.me.guild_permissions.ban_members:
+        if not guild.me.guild_permissions.view_audit_log:
             return None
         try:
             async for entry in guild.audit_logs(action=action, limit=5):
@@ -65,41 +67,14 @@ class AntiBan(commands.Cog):
             if whitelist_status and whitelist_status[0]:
                 return
 
-            await self.ban_executor(guild, executor, user)
+            await self.alert_executor(guild, executor, user)
 
-    async def ban_executor(self, guild, executor, user, retries=3):
-        while retries > 0:
-            try:
-                await guild.ban(executor, reason="Member Ban | Unwhitelisted User")
-                await guild.unban(user, reason="Reverting ban by unwhitelisted user")
-                return
-            except discord.Forbidden:
-                return
-            except discord.HTTPException as e:
-                if e.status == 429:
-                    retry_after = e.response.headers.get('Retry-After')
-                    if retry_after:
-                        await asyncio.sleep(float(retry_after))
-                        retries -= 1
-                    else:
-                        break
-            except Exception:
-                return
-
-        retries = 3
-        while retries > 0:
-            try:
-                await guild.unban(user, reason="Reverting ban by unwhitelisted user")
-                return
-            except discord.Forbidden:
-                return
-            except discord.HTTPException as e:
-                if e.status == 429:
-                    retry_after = e.response.headers.get('Retry-After')
-                    if retry_after:
-                        await asyncio.sleep(float(retry_after))
-                        retries -= 1
-                    else:
-                        break
-            except Exception:
-                return
+    async def alert_executor(self, guild, executor, user):
+        await send_antinuke_alert(
+            self.bot,
+            guild,
+            "Unauthorized member ban",
+            "A member was banned by a user who is not whitelisted for bans.",
+            executor=executor,
+            fields=[("Banned member", f"{user.mention} (`{user.id}`)")],
+        )

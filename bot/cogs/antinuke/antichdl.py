@@ -5,6 +5,8 @@ import asyncio
 import datetime
 import pytz
 
+from utils.antinuke_alerts import send_antinuke_alert
+
 class AntiChannelDelete(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -30,7 +32,7 @@ class AntiChannelDelete(commands.Cog):
         return True
 
     async def fetch_audit_logs(self, guild, action, target_id):
-        if not guild.me.guild_permissions.ban_members:
+        if not guild.me.guild_permissions.view_audit_log:
             return None
         try:
             async for entry in guild.audit_logs(action=action, limit=5):
@@ -70,17 +72,19 @@ class AntiChannelDelete(commands.Cog):
             if whitelist_status and whitelist_status[0]:
                 return
 
-            await self.recreate_channel_and_ban(channel, executor)
+            await self.recreate_channel_and_alert(channel, executor)
             await asyncio.sleep(3)
 
-    async def recreate_channel_and_ban(self, channel, executor, retries=3):
+    async def recreate_channel_and_alert(self, channel, executor, retries=3):
+        restored = False
         while retries > 0:
             try:
                 new_channel = await channel.clone(reason="Channel Delete | Unwhitelisted User")
                 await new_channel.edit(position=channel.position)
+                restored = True
                 break
             except discord.Forbidden:
-                return
+                break
             except discord.HTTPException as e:
                 if e.status == 429:
                     retry_after = e.response.headers.get('Retry-After')
@@ -90,25 +94,14 @@ class AntiChannelDelete(commands.Cog):
                     else:
                         break
             except Exception:
-                return
+                break
 
-        if retries == 0:
-            return
-
-        retries = 3
-        while retries > 0:
-            try:
-                await channel.guild.ban(executor, reason="Channel Delete | Unwhitelisted User")
-                return
-            except discord.Forbidden:
-                return
-            except discord.HTTPException as e:
-                if e.status == 429:
-                    retry_after = e.response.headers.get('Retry-After')
-                    if retry_after:
-                        await asyncio.sleep(float(retry_after))
-                        retries -= 1
-                    else:
-                        break
-            except Exception:
-                return
+        await send_antinuke_alert(
+            self.bot,
+            channel.guild,
+            "Unauthorized channel deletion",
+            "A channel was deleted by a user who is not whitelisted for channel deletion."
+            + (" The channel was recreated." if restored else ""),
+            executor=executor,
+            fields=[("Channel", f"#{channel.name} (`{channel.id}`)")],
+        )

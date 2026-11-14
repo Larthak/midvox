@@ -95,8 +95,7 @@ MidVox ships as one production Docker image. Railway should build the repository
 | `DISCORD_CLIENT_ID` | Discord OAuth application ID |
 | `DISCORD_CLIENT_SECRET` | Discord OAuth client secret |
 | `NEXTAUTH_SECRET` | Random secret used to sign dashboard sessions |
-| `DASHBOARD_API_KEY` | Private key for dashboard-to-bot API requests |
-| `NEXT_PUBLIC_DASHBOARD_API_KEY` | Matching key used by the dashboard proxy |
+| `DASHBOARD_API_KEY` | Private key injected server-side by the authenticated dashboard proxy |
 | `MONGO_URI` | MongoDB connection string for persistent guild settings |
 
 `start.sh` derives `NEXTAUTH_URL` from Railway's public domain at runtime, which prevents OAuth redirects from pointing to an older deployment.

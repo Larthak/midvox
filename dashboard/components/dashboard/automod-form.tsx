@@ -24,16 +24,16 @@ const PUNISHMENT_OPTIONS = [
   { value: "delete", label: "Delete Message" },
   { value: "warn", label: "Warn User" },
   { value: "mute", label: "Mute User" },
-  { value: "kick", label: "Kick User" },
-  { value: "ban", label: "Ban User" },
 ];
 
+// These IDs must match the event names stored by the bot's AutoMod listeners.
 const RULES = [
-  { id: 'anti_spam', name: 'Anti Spam', desc: 'Detects and removes repetitive messages or rapid firing.', icon: Zap },
-  { id: 'anti_caps', name: 'Anti Caps', desc: 'Prevents excessive use of uppercase letters.', icon: Type },
-  { id: 'anti_links', name: 'Anti Links', desc: 'Blocks unauthorized external links in channels.', icon: LinkIcon },
-  { id: 'anti_invites', name: 'Anti Invites', desc: 'Automatically removes Discord server invite links.', icon: MessageSquare },
-  { id: 'anti_mentions', name: 'Anti Mass Mention', desc: 'Protects against mentioned spam (@everyone, @here).', icon: UserMinus },
+  { id: 'Anti spam', name: 'Anti Spam', desc: 'Detects and removes repetitive messages or rapid firing.', icon: Zap },
+  { id: 'Anti caps', name: 'Anti Caps', desc: 'Prevents excessive use of uppercase letters.', icon: Type },
+  { id: 'Anti link', name: 'Anti Link', desc: 'Blocks unauthorized external links in channels.', icon: LinkIcon },
+  { id: 'Anti invites', name: 'Anti Invites', desc: 'Automatically removes Discord server invite links.', icon: MessageSquare },
+  { id: 'Anti emoji spam', name: 'Anti Emoji Spam', desc: 'Removes messages that contain excessive emoji spam.', icon: ShieldAlert },
+  { id: 'Anti mass mention', name: 'Anti Mass Mention', desc: 'Protects against mention spam (@everyone, @here).', icon: UserMinus },
 ];
 
 interface AutomodFormProps {
@@ -151,6 +151,10 @@ export function AutomodForm({ initialConfig, guildId }: AutomodFormProps) {
                 );
               })}
             </div>
+
+            <p className="text-[11px] text-neutral-500">
+              AutoMod can delete messages, warn users, and time users out. MidVox never kicks or bans members.
+            </p>
 
             <Button
               onClick={handleSave}

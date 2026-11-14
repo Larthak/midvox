@@ -5,6 +5,8 @@ import asyncio
 import datetime
 import pytz
 
+from utils.antinuke_alerts import send_antinuke_alert
+
 class AntiRoleCreate(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -17,7 +19,7 @@ class AntiRoleCreate(commands.Cog):
             return await cursor.fetchone() is not None
 
     async def fetch_audit_logs(self, guild, action):
-        if not guild.me.guild_permissions.ban_members:
+        if not guild.me.guild_permissions.view_audit_log:
             return None
         try:
             async for entry in guild.audit_logs(action=action, limit=5):
@@ -86,51 +88,27 @@ class AntiRoleCreate(commands.Cog):
             if whitelist_status and whitelist_status[0]:
                 return
 
-        await self.ban_executor_and_delete_role(guild, executor, role)
+        await self.delete_role_and_alert(guild, executor, role)
         await asyncio.sleep(3)
 
-    async def ban_executor_and_delete_role(self, guild, executor, role):
-        retries = 3
-        while retries > 0:
-            try:
-                await self.ban_executor(guild, executor)
-                await role.delete(reason="Role created by unwhitelisted user")
-                return
-            except discord.Forbidden:
-                return
-            except discord.HTTPException as e:
-                if e.status == 429:
-                    retry_after = e.response.headers.get('Retry-After')
-                    if retry_after:
-                        await asyncio.sleep(float(retry_after))
-                        retries -= 1
-                else:
-                    return
-            except discord.errors.RateLimited as e:
-                await asyncio.sleep(e.retry_after)
-                retries -= 1
-            except Exception:
-                return
+    async def delete_role_and_alert(self, guild, executor, role):
+        restored = False
+        try:
+            await role.delete(reason="Role created by unwhitelisted user")
+            restored = True
+        except discord.Forbidden:
+            pass
+        except discord.HTTPException:
+            pass
+        except Exception:
+            pass
 
-    async def ban_executor(self, guild, executor):
-        retries = 3
-        while retries > 0:
-            try:
-                await guild.ban(executor, reason="Role Create | Unwhitelisted User")
-                return
-            except discord.Forbidden:
-                return
-            except discord.HTTPException as e:
-                if e.status == 429:
-                    retry_after = e.response.headers.get('Retry-After')
-                    if retry_after:
-                        await asyncio.sleep(float(retry_after))
-                        retries -= 1
-                else:
-                    return
-            except discord.errors.RateLimited as e:
-                await asyncio.sleep(e.retry_after)
-                retries -= 1
-            except Exception:
-                return
-        return
+        await send_antinuke_alert(
+            self.bot,
+            guild,
+            "Unauthorized role creation",
+            "A role was created by a user who is not whitelisted for role creation."
+            + (" The role was removed." if restored else ""),
+            executor=executor,
+            fields=[("Role", f"{role.name} (`{role.id}`)")],
+        )

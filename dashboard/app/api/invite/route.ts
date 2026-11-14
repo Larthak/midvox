@@ -13,9 +13,12 @@ export function GET() {
     );
   }
 
+  // Curated permissions: no Administrator, Ban Members, or Kick Members.
+  // The bot keeps the moderation, channel, role, webhook, and voice access it
+  // needs without being able to remove members from a server.
   const inviteUrl = new URL("https://discord.com/oauth2/authorize");
   inviteUrl.searchParams.set("client_id", clientId);
-  inviteUrl.searchParams.set("permissions", "8");
+  inviteUrl.searchParams.set("permissions", "1644904836849");
   inviteUrl.searchParams.set("integration_type", "0");
   inviteUrl.searchParams.set("scope", "bot applications.commands");
 

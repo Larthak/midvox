@@ -5,6 +5,8 @@ import asyncio
 import datetime
 import pytz
 
+from utils.antinuke_alerts import send_antinuke_alert
+
 class AntiChannelCreate(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -25,7 +27,7 @@ class AntiChannelCreate(commands.Cog):
         return True
 
     async def fetch_audit_logs(self, guild, action, target_id, delay=1):
-        if not guild.me.guild_permissions.ban_members:
+        if not guild.me.guild_permissions.view_audit_log:
             return None
         try:
             async for entry in guild.audit_logs(action=action, limit=5):
@@ -54,22 +56,31 @@ class AntiChannelCreate(commands.Cog):
             except discord.HTTPException:
                 pass
 
-    async def delete_channel_and_ban(self, channel, executor, delay=2, retries=3):
+    async def delete_channel_and_alert(self, channel, executor, delay=2, retries=3):
         while retries > 0:
             try:
                 await channel.delete(reason="Channel created by unwhitelisted user")
-                #await asyncio.sleep(delay)
-                await channel.guild.ban(executor, reason="Channel Create | Unwhitelisted User")
-                return
+                break
             except discord.Forbidden:
-                return
+                break
             except discord.HTTPException as e:
                 if e.status == 429:
                     retry_after = e.response.headers.get('Retry-After', delay)
                     await asyncio.sleep(float(retry_after))
                     retries -= 1
+                else:
+                    break
             except Exception:
-                return
+                break
+
+        await send_antinuke_alert(
+            self.bot,
+            channel.guild,
+            "Unauthorized channel creation",
+            "A channel was created by a user who is not whitelisted for channel creation. The channel was removed.",
+            executor=executor,
+            fields=[("Channel", f"#{channel.name} (`{channel.id}`)")],
+        )
 
     @commands.Cog.listener()
     async def on_guild_channel_create(self, channel):
@@ -98,4 +109,4 @@ class AntiChannelCreate(commands.Cog):
             if whitelist_status and whitelist_status[0]:
                 return
 
-            await self.delete_channel_and_ban(channel, executor, delay=2)
+            await self.delete_channel_and_alert(channel, executor, delay=2)

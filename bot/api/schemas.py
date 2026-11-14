@@ -344,6 +344,9 @@ class AdminConfigUpdate(BaseModel):
     maintenance_mode: Optional[bool] = None
     global_notification: Optional[str] = None
 
+class AdminNotification(BaseModel):
+    global_notification: Optional[str] = None
+
 class AntiSpamPlusConfig(BaseModel):
     guild_id: int
     delete_messages: bool = False

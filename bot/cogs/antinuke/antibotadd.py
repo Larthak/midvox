@@ -5,6 +5,8 @@ import asyncio
 import datetime
 import pytz
 
+from utils.antinuke_alerts import send_antinuke_alert
+
 class AntiBotAdd(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -30,7 +32,7 @@ class AntiBotAdd(commands.Cog):
         return True
 
     async def fetch_audit_logs(self, guild, action, target_id):
-        if not guild.me.guild_permissions.kick_members:
+        if not guild.me.guild_permissions.view_audit_log:
             return None
         try:
             async for entry in guild.audit_logs(action=action, limit=5):
@@ -77,44 +79,20 @@ class AntiBotAdd(commands.Cog):
             if extra_owner_status and extra_owner_status[0]:
                 return
 
-            await self.take_action_and_kick_bot(guild, executor, member, "Unwhitelisted user added a bot")
+            await self.alert_bot_add(guild, executor, member, "Unwhitelisted user added a bot")
 
-    async def take_action_and_kick_bot(self, guild, executor, bot_member, reason, retries=3):
-        while retries > 0:
-            try:
-                await guild.kick(bot_member, reason=reason)
-                await guild.ban(executor, reason=reason)
-                return
-            except discord.Forbidden:
-                return
-            except discord.HTTPException as e:
-                if e.status == 429:
-                    retry_after = e.response.headers.get('Retry-After')
-                    if retry_after:
-                        await asyncio.sleep(float(retry_after))
-                        retries -= 1
-                    else:
-                        break
-            except Exception:
-                return
-
-        retries = 3
-        while retries > 0:
-            try:
-                await guild.ban(executor, reason=reason)
-                return
-            except discord.Forbidden:
-                return
-            except discord.HTTPException as e:
-                if e.status == 429:
-                    retry_after = e.response.headers.get('Retry-After')
-                    if retry_after:
-                        await asyncio.sleep(float(retry_after))
-                        retries -= 1
-                    else:
-                        break
-            except Exception:
-                return
+    async def alert_bot_add(self, guild, executor, bot_member, reason):
+        await send_antinuke_alert(
+            self.bot,
+            guild,
+            "Unauthorized bot addition",
+            "A bot was added by a user who is not whitelisted for bot additions. No member was removed.",
+            executor=executor,
+            fields=[
+                ("Bot", f"{bot_member.mention} (`{bot_member.id}`)"),
+                ("Reason", reason),
+            ],
+        )
 
 async def setup(bot):
     await bot.add_cog(AntiBotAdd(bot))

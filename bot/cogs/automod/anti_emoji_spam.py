@@ -6,6 +6,8 @@ import re
 from datetime import timedelta
 import asyncio
 
+from utils.automod import normalize_punishment
+
 class AntiEmojiSpam(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -106,21 +108,17 @@ class AntiEmojiSpam(commands.Cog):
         emoji_count = len(emoji_pattern.findall(message.content))
 
         if emoji_count > self.emoji_threshold:
-            punishment = await self.get_punishment(guild_id)
-            action_taken = None
+            punishment = normalize_punishment(await self.get_punishment(guild_id))
+            action_taken = "Message deleted"
             reason = f"Emoji Spam ({emoji_count} emojis)"
 
             try:
-                if punishment == "Mute":
+                if punishment == "mute":
                     timeout_duration = discord.utils.utcnow() + timedelta(minutes=1)
                     await user.edit(timed_out_until=timeout_duration, reason=reason)
                     action_taken = "Muted for 1 minute"
-                elif punishment == "Kick":
-                    await user.kick(reason=reason)
-                    action_taken = "Kicked"
-                elif punishment == "Ban":
-                    await user.ban(reason=reason)
-                    action_taken = "Banned"
+                elif punishment == "warn":
+                    action_taken = "Warned"
 
                 await message.delete()
 

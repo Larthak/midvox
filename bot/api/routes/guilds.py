@@ -25,6 +25,8 @@ import json
 import os
 import discord
 
+from utils.automod import AUTOMOD_EVENTS, normalize_punishment
+
 if TYPE_CHECKING:
     from core.midvox import midvox
 
@@ -109,7 +111,11 @@ async def get_guild_automod(guild_id: int):
 
     # Get punishments
     cursor = await db.execute("SELECT event, punishment FROM automod_punishments WHERE guild_id = ?", (guild_id,))
-    punishments = {row[0]: row[1] for row in await cursor.fetchall()}
+    punishments = {
+        event: normalize_punishment(punishment)
+        for event, punishment in await cursor.fetchall()
+        if event in AUTOMOD_EVENTS
+    }
 
     # Get ignored items
     cursor = await db.execute("SELECT type, id FROM automod_ignored WHERE guild_id = ?", (guild_id,))
@@ -144,10 +150,18 @@ async def patch_guild_automod(guild_id: int, data: AutomodUpdate):
         )
 
     if data.punishments is not None:
+        # The dashboard submits the full rule set, so replace stale rows. Any
+        # legacy Kick/Ban choice is downgraded before it reaches the database.
+        await db.execute(
+            "DELETE FROM automod_punishments WHERE guild_id = ? AND event != 'Anti NSFW link'",
+            (guild_id,)
+        )
         for event, punishment in data.punishments.items():
+            if event not in AUTOMOD_EVENTS:
+                continue
             await db.execute(
                 "INSERT OR REPLACE INTO automod_punishments (guild_id, event, punishment) VALUES (?, ?, ?)",
-                (guild_id, event, punishment)
+                (guild_id, event, normalize_punishment(punishment))
             )
 
     if data.ignored_roles is not None:
@@ -470,6 +484,17 @@ async def get_guild_antinuke(guild_id: int):
         whitelisted_users=whitelisted
     )
 
+ANTINUKE_REQUIRED_PERMISSIONS = (
+    "view_audit_log",
+    "manage_guild",
+    "manage_channels",
+    "manage_roles",
+    "manage_webhooks",
+    "manage_messages",
+    "moderate_members",
+)
+
+
 @router.patch("/{guild_id}/antinuke", summary="Update AntiNuke config")
 async def patch_guild_antinuke(
     guild_id: int,
@@ -482,10 +507,18 @@ async def patch_guild_antinuke(
         guild = bot.get_guild(guild_id)
         if guild is None or guild.me is None:
             raise HTTPException(status_code=404, detail="Guild is unavailable")
-        if not guild.me.guild_permissions.administrator:
+        missing_permissions = [
+            name.replace("_", " ").title()
+            for name in ANTINUKE_REQUIRED_PERMISSIONS
+            if not getattr(guild.me.guild_permissions, name, False)
+        ]
+        if missing_permissions:
             raise HTTPException(
                 status_code=400,
-                detail="MidVox needs Administrator permission before Anti-Nuke can be enabled",
+                detail=(
+                    "MidVox needs these permissions before Anti-Nuke can be enabled: "
+                    + ", ".join(missing_permissions)
+                ),
             )
         dangerous_roles_above = [
             role for role in guild.roles
@@ -1199,19 +1232,32 @@ ROLE_PRESETS = {
         "embed_links", "attach_files", "use_external_emojis", "use_external_stickers",
         "use_application_commands", "connect", "speak", "stream", "use_voice_activation",
         "change_nickname", "manage_nicknames", "manage_messages", "manage_channels",
-        "manage_roles", "manage_webhooks", "view_audit_log", "kick_members", "ban_members",
-        "moderate_members", "mute_members", "deafen_members", "move_members",
+        "manage_roles", "manage_webhooks", "view_audit_log", "moderate_members",
+        "mute_members", "deafen_members", "move_members",
     },
 }
+
+# MidVox no longer removes members, and the dashboard must not be able to grant
+# ban or kick permissions to a role either.
+DISALLOWED_ROLE_PERMISSIONS = {"kick_members", "ban_members"}
 
 
 def _role_permissions(data: RoleMutation) -> discord.Permissions:
     if data.permissions is None and data.preset == "all":
-        return discord.Permissions.all()
+        permissions = discord.Permissions.all()
+        for name in DISALLOWED_ROLE_PERMISSIONS:
+            setattr(permissions, name, False)
+        return permissions
     names = set(data.permissions if data.permissions is not None else ROLE_PRESETS.get(data.preset, set()))
     invalid = sorted(names.difference(discord.Permissions.VALID_FLAGS))
     if invalid:
         raise HTTPException(status_code=400, detail=f"Unknown Discord permissions: {', '.join(invalid)}")
+    blocked = sorted(names.intersection(DISALLOWED_ROLE_PERMISSIONS))
+    if blocked:
+        raise HTTPException(
+            status_code=400,
+            detail="MidVox does not grant Ban Members or Kick Members permissions",
+        )
     permissions = discord.Permissions.none()
     for name in names:
         setattr(permissions, name, True)
