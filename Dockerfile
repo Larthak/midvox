@@ -18,6 +18,10 @@ RUN apt-get update \
 # Use Discord's official Linux desktop client so linked account activities are
 # handled by Discord itself. The tar package avoids running an installer in the
 # final image and is refreshed whenever Railway rebuilds the image.
+#
+# This is an optional presence sidecar: a Discord CDN outage or updater failure
+# must never block shipping the bot and dashboard. The stage reports the problem
+# and continues, and the final stage only validates the runtime when present.
 FROM debian:bookworm-slim AS discord_desktop
 # The public package contains only a small updater. Install its desktop modules
 # during the image build so the first deployment can authenticate and publish
@@ -25,20 +29,31 @@ FROM debian:bookworm-slim AS discord_desktop
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl tar \
     && rm -rf /var/lib/apt/lists/* \
-    && curl -fL --retry 3 \
-        -o /tmp/discord.tar.gz \
-        'https://discord.com/api/download?platform=linux&format=tar.gz' \
-    && tar -xzf /tmp/discord.tar.gz -C /opt \
+    && mkdir -p /opt/Discord /discord-home/discord \
+    && ( \
+         curl -fL --retry 3 --retry-delay 5 \
+           -o /tmp/discord.tar.gz \
+           'https://discord.com/api/download?platform=linux&format=tar.gz' \
+         && tar -xzf /tmp/discord.tar.gz -C /opt \
+       ) \
+    || echo 'WARNING: Discord launcher download failed; building without the optional desktop sidecar.' >&2 \
     && if [ -x /opt/Discord/discord ]; then \
-         ln -s discord /opt/Discord/Discord; \
-       elif [ ! -x /opt/Discord/Discord ]; then \
-         echo 'Discord launcher not found after extracting the Linux package' >&2; \
-         exit 1; \
+         ln -sf discord /opt/Discord/Discord; \
        fi \
-    && mkdir -p /discord-home/discord \
-    && /opt/Discord/updater_bootstrap --no-zenity \
-         /discord-home/discord stable https://updates.discord.com/ \
-    && test -n "$(find /discord-home/discord -maxdepth 2 -type f -name Discord -perm /111 -print -quit)"
+    && if [ -x /opt/Discord/updater_bootstrap ]; then \
+         for attempt in 1 2 3; do \
+           echo "Discord desktop install attempt $attempt"; \
+           if /opt/Discord/updater_bootstrap --no-zenity \
+                /discord-home/discord stable https://updates.discord.com/ \
+              && test -n "$(find /discord-home/discord -maxdepth 2 -type f -name Discord -perm /111 -print -quit)"; then \
+             break; \
+           fi; \
+           sleep 10; \
+         done; \
+       fi \
+    && if [ -z "$(find /discord-home/discord -maxdepth 2 -type f -name Discord -perm /111 -print -quit)" ]; then \
+         echo 'WARNING: Discord desktop runtime is unavailable; the optional presence sidecar will retry at runtime.' >&2; \
+       fi
 
 # Cobalt 11.7.1 is pinned to youtubei.js 17.0.1, which is no longer reliable
 # against YouTube's current player API. Keep Cobalt itself stable while using
@@ -110,12 +125,14 @@ RUN apt-get update \
         libxext6 libxfixes3 libxkbcommon0 libxrandr2 libxss1 libxtst6 \
         passwd util-linux xdg-utils xvfb chromium ffmpeg \
     && useradd --system --create-home --home-dir /home/midvox --shell /usr/sbin/nologin midvox \
-    && test -x /opt/Discord/discord \
-    && test -n "$(find /var/lib/midvox/discord-home/discord -maxdepth 2 -type f -name Discord -perm /111 -print -quit)" \
     && command -v Xvfb \
     && command -v chromium \
     && DISCORD_RUNTIME="$(find /var/lib/midvox/discord-home/discord -maxdepth 2 -type f -name Discord -perm /111 -print -quit)" \
-    && if ldd "$DISCORD_RUNTIME" | grep 'not found'; then exit 1; fi \
+    && if [ -n "$DISCORD_RUNTIME" ]; then \
+         if ldd "$DISCORD_RUNTIME" | grep 'not found'; then exit 1; fi; \
+       else \
+         echo 'WARNING: Discord desktop runtime is not present; the optional presence sidecar is disabled for this image.' >&2; \
+       fi \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONUNBUFFERED=1 \
