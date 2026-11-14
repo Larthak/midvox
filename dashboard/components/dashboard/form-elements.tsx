@@ -54,7 +54,7 @@ export const DropdownSelect = ({
   className
 }: DropdownSelectProps) => (
   <div className={cn("space-y-2", className)}>
-    {label && <label className="pl-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--ink-muted)]">{label}</label>}
+    {label && <label className="pl-1 text-xs font-medium text-[var(--ink-muted)]">{label}</label>}
     <Select
       value={value}
       onValueChange={onValueChange}
@@ -73,7 +73,7 @@ interface FormInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 
 export const FormInput = ({ label, icon: Icon, className, ...props }: FormInputProps) => (
   <div className="w-full space-y-2">
-    {label && <label className="pl-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--ink-muted)]">{label}</label>}
+    {label && <label className="pl-1 text-xs font-medium text-[var(--ink-muted)]">{label}</label>}
     <div className="group relative">
       {Icon && (
         <Icon className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--ink-faint)] transition-colors group-focus-within:text-primary" />

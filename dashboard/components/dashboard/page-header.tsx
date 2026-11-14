@@ -14,31 +14,29 @@ export const PageHeader = ({
   description,
   children,
   icon: Icon,
-  className
+  className,
 }: PageHeaderProps) => {
   return (
-    <div className={cn("flex flex-col md:flex-row md:items-center justify-between gap-5 mb-8", className)}>
-      <div className="flex items-start gap-4">
+    <div className={cn("mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end", className)}>
+      <div className="flex items-start gap-3.5">
         {Icon && (
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10">
-            <Icon className="h-5 w-5 text-primary" />
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--panel-line)] bg-[var(--panel-raised)] text-[var(--panel-accent-deep)]">
+            <Icon className="h-5 w-5" />
           </div>
         )}
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--ink)]">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--panel-ink)]">
             {title}
           </h1>
           {description && (
-            <p className="mt-1 text-sm font-normal text-[var(--ink-muted)]">
+            <p className="mt-1.5 max-w-2xl text-sm leading-6 text-[var(--panel-muted)]">
               {description}
             </p>
           )}
         </div>
       </div>
       {children && (
-        <div className="flex items-center gap-3">
-          {children}
-        </div>
+        <div className="flex flex-wrap items-center gap-2.5">{children}</div>
       )}
     </div>
   );

@@ -9,11 +9,11 @@ export default async function GuildSettingsPage({ params }: { params: { guildId:
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
       <div>
-        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+        <h2 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--panel-ink)]">
           <Settings2 className="h-6 w-6 text-primary" />
           General Settings
         </h2>
-        <p className="text-neutral-400 mt-1">Manage core bot configuration for this server.</p>
+        <p className="mt-1 text-sm text-[var(--panel-muted)]">Manage core bot configuration for this server.</p>
       </div>
 
       <SettingsForm initialPrefix={config.prefix} guildId={params.guildId} />

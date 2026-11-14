@@ -4,13 +4,17 @@ import * as React from "react"
 import { ChevronDown, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-// Context for sub-components
-const SelectContext = React.createContext<{
+type SelectContextValue = {
   value: string
   onValueChange: (value: string) => void
+  choose: (value: string) => void
   isOpen: boolean
   setIsOpen: (open: boolean) => void
-} | null>(null)
+  setOpen: (open: boolean) => void
+  popoverId: string
+}
+
+const SelectContext = React.createContext<SelectContextValue | null>(null)
 
 export interface SelectOption {
   value: string
@@ -31,6 +35,7 @@ interface SelectProps {
 const Select = ({ children, value, onValueChange, options, placeholder, className, disabled }: SelectProps) => {
   const [isOpen, setIsOpen] = React.useState(false)
   const containerRef = React.useRef<HTMLDivElement>(null)
+  const popoverId = React.useId()
 
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -42,6 +47,51 @@ const Select = ({ children, value, onValueChange, options, placeholder, classNam
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
+  React.useEffect(() => {
+    if (!isOpen) return
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return
+      setIsOpen(false)
+      containerRef.current
+        ?.querySelector<HTMLButtonElement>("button[aria-haspopup]")
+        ?.focus()
+    }
+
+    // Only one dropdown or popover should be open at a time across the page.
+    const handleOtherPopover = (event: Event) => {
+      if ((event as CustomEvent<string>).detail !== popoverId) {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener("keydown", handleEscape)
+    window.addEventListener("midvox:popover-open", handleOtherPopover)
+    return () => {
+      document.removeEventListener("keydown", handleEscape)
+      window.removeEventListener("midvox:popover-open", handleOtherPopover)
+    }
+  }, [isOpen, popoverId])
+
+  const setOpen = (open: boolean) => {
+    setIsOpen(open)
+    if (open) {
+      window.dispatchEvent(
+        new CustomEvent("midvox:popover-open", { detail: popoverId }),
+      )
+    }
+  }
+
+  const choose = (nextValue: string) => {
+    onValueChange(nextValue)
+    setIsOpen(false)
+    window.requestAnimationFrame(() => {
+      containerRef.current
+        ?.querySelector<HTMLButtonElement>("button[aria-haspopup]")
+        ?.focus()
+    })
+  }
+
   // If options are provided, use the legacy rendering
   if (options) {
     const selectedOption = options.find((opt) => opt.value === value)
@@ -50,7 +100,10 @@ const Select = ({ children, value, onValueChange, options, placeholder, classNam
         <button
           type="button"
           disabled={disabled}
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => setOpen(!isOpen)}
+          aria-haspopup="listbox"
+          aria-expanded={isOpen}
+          aria-controls={`${popoverId}-listbox`}
           className={cn(
             "flex h-10 w-full items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm text-[var(--ink)] shadow-sm transition-all focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-50",
             isOpen && "border-primary/50 ring-2 ring-primary/15"
@@ -63,18 +116,22 @@ const Select = ({ children, value, onValueChange, options, placeholder, classNam
         </button>
 
         {isOpen && (
-          <div className="absolute top-full z-50 mt-2 w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-[0_16px_36px_rgba(25,27,20,0.12)] animate-in fade-in zoom-in-95 duration-200">
+          <div
+            id={`${popoverId}-listbox`}
+            role="listbox"
+            aria-label={placeholder || "Options"}
+            className="absolute top-full z-50 mt-2 w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-[0_16px_36px_rgba(25,27,20,0.12)] animate-in fade-in zoom-in-95 duration-200"
+          >
             <div className="max-h-60 overflow-y-auto overflow-x-hidden no-scrollbar">
               {options.map((option) => (
                 <button
                   key={option.value}
                   type="button"
-                  onClick={() => {
-                    onValueChange(option.value)
-                    setIsOpen(false)
-                  }}
+                  role="option"
+                  aria-selected={value === option.value}
+                  onClick={() => choose(option.value)}
                   className={cn(
-                    "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm text-[var(--ink)] transition-colors hover:bg-primary/10",
+                    "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-[var(--ink)] transition-colors hover:bg-primary/10",
                     value === option.value ? "bg-primary/15 text-primary-dark" : ""
                   )}
                 >
@@ -91,7 +148,9 @@ const Select = ({ children, value, onValueChange, options, placeholder, classNam
 
   // Otherwise, use the sub-component pattern
   return (
-    <SelectContext.Provider value={{ value, onValueChange, isOpen, setIsOpen }}>
+    <SelectContext.Provider
+      value={{ value, onValueChange, choose, isOpen, setIsOpen, setOpen, popoverId }}
+    >
       <div className={cn("relative w-full", className)} ref={containerRef}>
         {children}
       </div>
@@ -110,7 +169,10 @@ const SelectTrigger = React.forwardRef<
     <button
       ref={ref}
       type="button"
-      onClick={() => context.setIsOpen(!context.isOpen)}
+      onClick={() => context.setOpen(!context.isOpen)}
+      aria-haspopup="listbox"
+      aria-expanded={context.isOpen}
+      aria-controls={`${context.popoverId}-listbox`}
       className={cn(
         "flex h-10 w-full items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm text-[var(--ink)] shadow-sm transition-all focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-50",
         context.isOpen && "border-primary/50 ring-2 ring-primary/15",
@@ -136,7 +198,11 @@ const SelectContent = ({ children, className }: { children: React.ReactNode, cla
   if (!context || !context.isOpen) return null
 
   return (
-    <div className={cn("absolute top-full z-50 mt-2 w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-[0_16px_36px_rgba(25,27,20,0.12)] animate-in fade-in zoom-in-95 duration-200", className)}>
+    <div
+      id={`${context.popoverId}-listbox`}
+      role="listbox"
+      className={cn("absolute top-full z-50 mt-2 w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-[0_16px_36px_rgba(25,27,20,0.12)] animate-in fade-in zoom-in-95 duration-200", className)}
+    >
       <div className="max-h-60 overflow-y-auto overflow-x-hidden no-scrollbar">
         {children}
       </div>
@@ -157,12 +223,11 @@ const SelectItem = React.forwardRef<
     <button
       ref={ref}
       type="button"
-      onClick={() => {
-        context.onValueChange(value)
-        context.setIsOpen(false)
-      }}
+      role="option"
+      aria-selected={isSelected}
+      onClick={() => context.choose(value)}
       className={cn(
-        "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm text-[var(--ink)] transition-colors hover:bg-primary/10",
+        "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-[var(--ink)] transition-colors hover:bg-primary/10",
         isSelected ? "bg-primary/15 text-primary-dark" : "",
         className
       )}

@@ -41,11 +41,11 @@ export default function InvitesPage({ params }: { params: { guildId: string } })
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h2 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--panel-ink)]">
             <TrendingUp className="h-6 w-6 text-primary" />
             Invite Leaderboard
           </h2>
-          <p className="text-neutral-400 mt-1">Top inviters in the server based on tracked join events.</p>
+          <p className="mt-1 text-sm text-[var(--panel-muted)]">Top inviters in the server based on tracked join events.</p>
         </div>
         <button onClick={fetchLeaderboard} className="text-neutral-400 hover:text-white transition-colors">
           <RefreshCcw className="w-5 h-5" />

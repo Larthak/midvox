@@ -27,6 +27,12 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${spaceGrotesk.variable} ${plusJakarta.variable} ${jetbrainsMono.variable}`}>
       <body className="bg-[var(--bg)] font-sans text-[var(--ink)] antialiased">
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{if(localStorage.getItem('midvox-theme')==='dark'){document.documentElement.classList.add('theme-dark')}}catch(e){}",
+          }}
+        />
         {/* Subtle grid background */}
         <div
           aria-hidden

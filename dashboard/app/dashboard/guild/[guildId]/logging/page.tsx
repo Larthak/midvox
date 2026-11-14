@@ -23,7 +23,7 @@ export default async function LoggingPage({ params }: { params: { guildId: strin
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-2xl font-black text-white flex items-center gap-2 tracking-tight">
+          <h2 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--panel-ink)]">
             <BellRing className="h-6 w-6 text-primary" />
             Audit Logging
           </h2>

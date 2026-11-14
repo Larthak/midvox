@@ -1,188 +1,370 @@
-"use client";
-
-import React, { useState } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
+  ArrowLeft,
   Bot,
-  ChevronLeft,
-  Search,
+  Download,
+  KeyRound,
+  LayoutDashboard,
+  MessageSquare,
   ShieldCheck,
-  Zap,
-  Activity,
-  Layers,
   Sparkles,
-  Search as SearchIcon,
-  BookOpen,
-  Menu,
-  X
+  Ticket,
+  Users,
+  Wrench,
+  type LucideIcon,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { BRAND_NAME } from "@/lib/brand";
 
-const DOCS_NAV = [
+export const metadata: Metadata = {
+  title: `Documentation — ${BRAND_NAME}`,
+  description: `How ${BRAND_NAME} modules and dashboard access work.`,
+};
+
+type Module = {
+  name: string;
+  description: string;
+};
+
+type Section = {
+  id: string;
+  title: string;
+  summary: string;
+  icon: LucideIcon;
+  modules: Module[];
+};
+
+const SECTIONS: Section[] = [
   {
-    title: "Getting Started",
-    items: [
-      { name: "Introduction", description: "Learn about the Neural Core." },
-      { name: "Quick Start", description: "Deploy in 30 seconds." },
-      { name: "Architecture", description: "Deep dive into our engine." }
-    ]
+    id: "access",
+    title: "Access and permissions",
+    summary:
+      "What you need before you can open a server, and which actions the dashboard allows.",
+    icon: KeyRound,
+    modules: [
+      {
+        name: "Signing in",
+        description:
+          "Use the Log in button and approve Discord access. The dashboard only opens for allowlisted administrators or people who can manage at least one server.",
+      },
+      {
+        name: "Server permissions",
+        description:
+          "Manage Server or Administrator opens a server. Changing roles also requires Manage Roles. Every server page checks your Discord permissions on the server, not just in the browser.",
+      },
+      {
+        name: "Safety limits",
+        description:
+          "Role changes are validated on the server. The dashboard deliberately does not expose Kick Members or Ban Members. Administrator is only available through the explicit Advanced permission group in Role Creator.",
+      },
+      {
+        name: "Owner-only screens",
+        description:
+          "The admin panel and the bot's own Discord, YouTube, and Instagram login screens are limited to the bot owner. Other accounts are redirected.",
+      },
+    ],
   },
   {
-    title: "Security Modules",
-    items: [
-      { name: "Anti-Nuke", description: "Absolute lockdown protocols." },
-      { name: "Verification", description: "Captcha & Neural checks." },
-      { name: "Automod", description: "Context-aware AI filtering." }
-    ]
+    id: "security",
+    title: "Security",
+    summary:
+      "Keep raids, spam, and destructive changes under control before they spread.",
+    icon: ShieldCheck,
+    modules: [
+      {
+        name: "Anti-Nuke",
+        description:
+          "Watches for mass channel, role, and member changes and applies the limits you configure. Use it together with a trusted staff team and a protected owner role.",
+      },
+      {
+        name: "Automod",
+        description:
+          "Filters unwanted messages using your keyword, link, and invite rules, with actions such as delete, warn, or timeout. Start with logging only until you know what normal traffic looks like.",
+      },
+      {
+        name: "Message Deleter",
+        description:
+          "Cleans up spam and raid traffic with duplicate-message limits, heat thresholds, and optional join gates for very new or avatar-less accounts.",
+      },
+      {
+        name: "Verification",
+        description:
+          "Sends new members through a verification step before they receive access. Choose the verification channel and the role that is granted on success.",
+      },
+    ],
   },
   {
-    title: "Management",
-    items: [
-      { name: "Join to Create", description: "Dynamic voice channels." },
-      { name: "Leveling", description: "Cinematic rank generation." },
-      { name: "Tickets", description: "Enterprise helpdesk." }
-    ]
-  }
+    id: "engagement",
+    title: "Engagement",
+    summary:
+      "Welcome new members and give people reasons to keep participating.",
+    icon: Sparkles,
+    modules: [
+      {
+        name: "Welcome",
+        description:
+          "Posts a plain or embed welcome message in the channel you choose. Supports placeholders such as the member and server name.",
+      },
+      {
+        name: "Leveling",
+        description:
+          "Awards XP for activity and tracks a server leaderboard. Review the leaderboard from the Leveling page to spot inactive or unusually fast growth.",
+      },
+      {
+        name: "Vanity Roles",
+        description:
+          "Rewards members who put your server's vanity text in their status. Each setup pairs a vanity string with a role and a log channel.",
+      },
+      {
+        name: "Auto Role",
+        description:
+          "Gives new members a starting role as soon as they join, so they can see the right channels without waiting for staff.",
+      },
+      {
+        name: "Auto React",
+        description:
+          "Adds your chosen reactions to messages in selected channels. Useful for lightweight prompts and community rituals.",
+      },
+      {
+        name: "Reaction Roles",
+        description:
+          "Lets members assign roles to themselves through reactions or buttons. Use it for notification ping roles and optional interest groups.",
+      },
+      {
+        name: "Join DM",
+        description:
+          "Sends a private welcome message when someone joins. Keep it short, useful, and easy to act on.",
+      },
+      {
+        name: "Invites and tracking",
+        description:
+          "Records which invite brought a member in and can log join events to a channel. Useful for creator and partner programmes.",
+      },
+    ],
+  },
+  {
+    id: "support",
+    title: "Support",
+    summary: "Give questions a clear place to land and a clean way to close.",
+    icon: Ticket,
+    modules: [
+      {
+        name: "Tickets",
+        description:
+          "Publishes a ticket panel with buttons or a dropdown, routes tickets into categories, and can record transcripts. Set global staff roles, then override them per category when needed.",
+      },
+      {
+        name: "Panel appearance",
+        description:
+          "Edit the title, description, colour, and images on the ticket panel from the Tickets page. Changes apply to the next panel update.",
+      },
+    ],
+  },
+  {
+    id: "utility",
+    title: "Utility",
+    summary: "Smaller tools that remove repetitive admin work.",
+    icon: Wrench,
+    modules: [
+      {
+        name: "Join to Create",
+        description:
+          "Members join a voice channel and the bot creates a temporary channel for them. Choose the join channel and an optional control channel.",
+      },
+      {
+        name: "Custom Roles",
+        description:
+          "Connects named roles used by the bot's features, such as staff, VIP, and guest roles, to real roles in your server.",
+      },
+      {
+        name: "Role Creator",
+        description:
+          "Creates and edits roles with permission presets. Kick Members and Ban Members are deliberately unavailable from the dashboard.",
+      },
+      {
+        name: "Voice Role",
+        description:
+          "Assigns a role while a member is in a voice channel and removes it when they leave. Useful for voice-only access or activity tracking.",
+      },
+    ],
+  },
+  {
+    id: "media",
+    title: "Media",
+    summary: "Turn links into files without asking members to use another tool.",
+    icon: Download,
+    modules: [
+      {
+        name: "Instagram Downloader",
+        description:
+          "Watches selected channels for Instagram Reels, posts, stories, and YouTube Shorts links, then posts the downloaded media back to the channel.",
+      },
+    ],
+  },
+  {
+    id: "bot-owner",
+    title: "Bot owner",
+    summary:
+      "Screens that control the bot's own accounts. These are not server settings.",
+    icon: Bot,
+    modules: [
+      {
+        name: "Discord login",
+        description:
+          "Signs the bot's own Discord account in for features that need a user session, such as bumping. The saved session is encrypted.",
+      },
+      {
+        name: "YouTube and Instagram login",
+        description:
+          "Connects the bot's media accounts for Shorts and Reels downloads. Only the bot owner can open these screens.",
+      },
+    ],
+  },
 ];
 
 export default function DocsPage() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("Introduction");
-
   return (
-    <div className="min-h-screen bg-[#0C0C0C] text-[#F5F5F5] font-sans">
-      {/* Background Decor */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-red-500/[0.02] blur-[150px] rounded-full" />
-      </div>
-
-      {/* Nav */}
-      <nav className="fixed top-0 w-full z-50 border-b border-[#1F1F1F] bg-[rgba(12,12,12,0.95)] backdrop-blur-sm px-6 h-20 flex items-center justify-between">
-        <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center gap-4 group">
-            <div className="h-8 w-8 rounded-lg bg-red-600 flex items-center justify-center mr-3">
-              <Bot className="h-5 w-5 text-slate-50" />
-            </div>
-            <span className="text-xl font-bold text-slate-50 font-display uppercase tracking-tighter hidden md:block">MidVox Docs</span>
+    <div className="panel-shell min-h-screen">
+      <header className="panel-topbar sticky top-0 z-30">
+        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
+          <Link
+            href="/"
+            className="flex items-center gap-2.5"
+            aria-label={`${BRAND_NAME} homepage`}
+          >
+            <span className="panel-brand-mark">m</span>
+            <span className="panel-brand-name text-sm font-bold">
+              {BRAND_NAME}
+            </span>
           </Link>
 
-          <div className="hidden lg:flex items-center w-80 relative group">
-            <SearchIcon className="absolute left-4 h-4 w-4 text-neutral-500 group-focus-within:text-red-500 transition-colors" />
-            <input
-              type="text"
-              placeholder="Search documentation..."
-              className="w-full bg-[#1A1A1A]/70 border border-[#1F1F1F] rounded-[6px] py-2.5 pl-12 pr-4 text-xs font-bold text-neutral-300 focus:outline-none focus:ring-1 focus:ring-red-500/30 focus:bg-[#1A1A1A] transition-all"
-            />
+          <div className="flex items-center gap-4">
+            <Link
+              href="/"
+              className="hidden items-center gap-1.5 text-xs font-semibold text-[var(--panel-muted)] transition-colors hover:text-[var(--panel-ink)] sm:inline-flex"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Home
+            </Link>
+            <Link
+              href="/dashboard"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[var(--panel-line)] bg-[var(--panel-paper)] px-4 text-xs font-semibold text-[var(--panel-ink)] transition-colors hover:border-[var(--panel-accent)]"
+            >
+              <LayoutDashboard className="h-3.5 w-3.5" />
+              Dashboard
+            </Link>
           </div>
         </div>
+      </header>
 
-        <div className="flex items-center gap-4">
-           <button
-             className="lg:hidden p-2 text-neutral-400"
-             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-           >
-             {isSidebarOpen ? <X /> : <Menu />}
-           </button>
-           <Link href="/">
-            <Button variant="ghost" className="text-neutral-400 hover:text-slate-50 gap-2 text-xs font-black uppercase tracking-widest">
-              Exit Docs
-            </Button>
-          </Link>
+      <main className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
+        <div className="max-w-2xl">
+          <p className="text-xs font-semibold text-[var(--panel-accent-deep)]">
+            Documentation
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[var(--panel-ink)] sm:text-4xl">
+            A short guide to every part of {BRAND_NAME}
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-[var(--panel-muted)]">
+            Each server keeps its own configuration. Open a server from the
+            dashboard, pick a module in the sidebar, and save your changes
+            there. Nothing on this page changes a live setting.
+          </p>
         </div>
-      </nav>
 
-      <div className="max-w-7xl mx-auto flex pt-20">
-        {/* Sidebar */}
-        <aside className={cn(
-          "fixed inset-y-0 left-0 z-40 w-80 bg-[#0C0C0C] border-r border-[#1F1F1F] pt-20 transition-transform lg:translate-x-0 lg:static lg:bg-[#0F0F0F]",
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        )}>
-          <div className="h-full p-8 overflow-y-auto no-scrollbar">
-            {DOCS_NAV.map((section) => (
-              <div key={section.title} className="mb-10">
-                <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-neutral-600 mb-6">{section.title}</h4>
-                <div className="space-y-1">
-                  {section.items.map((item) => (
-                    <button
-                      key={item.name}
-                      onClick={() => {
-                        setActiveTab(item.name);
-                        setIsSidebarOpen(false);
-                      }}
-                      className={cn(
-                        "w-full flex flex-col items-start gap-1 p-4 rounded-[6px] transition-all text-left",
-                        activeTab === item.name
-                          ? "bg-red-500/10 border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.05)]"
-                          : "hover:bg-[#1A1A1A]/50 border border-transparent"
-                      )}
+        <div className="mt-9 grid grid-cols-1 gap-8 lg:grid-cols-[210px_1fr]">
+          <nav aria-label="Documentation sections" className="lg:sticky lg:top-24 lg:self-start">
+            <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--panel-faint)]">
+              On this page
+            </p>
+            <div className="mt-2 flex flex-wrap gap-1.5 lg:flex-col">
+              {SECTIONS.map((section) => (
+                <a
+                  key={section.id}
+                  href={`#${section.id}`}
+                  className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] font-medium text-[var(--panel-muted)] transition-colors hover:bg-[var(--panel-raised)] hover:text-[var(--panel-ink)]"
+                >
+                  <section.icon className="h-3.5 w-3.5 shrink-0 text-[var(--panel-faint)]" />
+                  {section.title}
+                </a>
+              ))}
+            </div>
+          </nav>
+
+          <div className="space-y-5">
+            {SECTIONS.map((section) => (
+              <section
+                key={section.id}
+                id={section.id}
+                className="panel-surface scroll-mt-24 rounded-2xl p-5 sm:p-6"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--panel-line)] bg-[var(--panel-raised)] text-[var(--panel-accent-deep)]">
+                    <section.icon className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <h2 className="text-lg font-semibold tracking-tight text-[var(--panel-ink)]">
+                      {section.title}
+                    </h2>
+                    <p className="mt-1 text-sm leading-6 text-[var(--panel-muted)]">
+                      {section.summary}
+                    </p>
+                  </div>
+                </div>
+
+                <dl className="mt-5 divide-y divide-[var(--panel-line)] border-t border-[var(--panel-line)]">
+                  {section.modules.map((module) => (
+                    <div
+                      key={module.name}
+                      className="grid gap-1 py-3.5 sm:grid-cols-[170px_1fr] sm:gap-4"
                     >
-                      <span className={cn("text-sm font-bold", activeTab === item.name ? "text-red-500" : "text-neutral-300")}>{item.name}</span>
-                      <span className="text-[10px] text-neutral-600 font-bold uppercase tracking-tight">{item.description}</span>
-                    </button>
+                      <dt className="text-[13px] font-semibold text-[var(--panel-ink)]">
+                        {module.name}
+                      </dt>
+                      <dd className="text-sm leading-6 text-[var(--panel-muted)]">
+                        {module.description}
+                      </dd>
+                    </div>
                   ))}
+                </dl>
+              </section>
+            ))}
+
+            <section className="rounded-2xl border border-dashed border-[var(--panel-line)] p-5 sm:p-6">
+              <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--panel-line)] bg-[var(--panel-raised)] text-[var(--panel-accent-deep)]">
+                  <Users className="h-4 w-4" />
+                </span>
+                <div>
+                  <h2 className="text-[15px] font-semibold text-[var(--panel-ink)]">
+                    Still stuck?
+                  </h2>
+                  <p className="mt-1 text-sm leading-6 text-[var(--panel-muted)]">
+                    Ask in the Discord server where you use {BRAND_NAME}. Include
+                    the server name, the module, and what you expected to happen.
+                    Never post your Discord token, session cookies, or API keys.
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Link
+                      href="/dashboard/guilds"
+                      className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[var(--panel-line)] bg-[var(--panel-paper)] px-4 text-xs font-semibold text-[var(--panel-ink)] transition-colors hover:border-[var(--panel-accent)]"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5" />
+                      Open your servers
+                    </Link>
+                    <a
+                      href="/api/invite"
+                      className="inline-flex h-9 items-center gap-1.5 rounded-full bg-primary-light px-4 text-xs font-semibold text-[#171A12] transition-colors hover:bg-[#BACF7F]"
+                    >
+                      Add {BRAND_NAME}
+                    </a>
+                  </div>
                 </div>
               </div>
-            ))}
+            </section>
           </div>
-        </aside>
-
-        {/* Content */}
-        <main className="flex-1 p-8 lg:p-16 relative z-10 max-w-4xl">
-           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest mb-8">
-            <BookOpen className="h-3 w-3" />
-            V2.4 Runtime Environment
-          </div>
-
-          <h1 className="text-6xl font-bold text-slate-50 font-display tracking-tighter uppercase mb-8 italic">
-            {activeTab}<span className="text-red-500 not-italic">.</span>
-          </h1>
-
-             <div className="prose max-w-none">
-             <p className="text-lg text-neutral-400 mb-12 leading-relaxed">
-               Welcome to the {activeTab} section of the MidVox Engine documentation. Our engine is designed for communities that demand absolute performance and cinematic management tools.
-             </p>
-
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-8 rounded-[32px] bg-[#131313] border-[#1F1F1F] space-y-4">
-                   <Zap className="h-6 w-6 text-red-500" />
-                   <h3 className="text-xl font-bold text-slate-50 font-display uppercase">Fast Dispatch</h3>
-                   <p className="text-sm text-neutral-500 font-bold uppercase tracking-tight">Commands are dispatched via our global edge network in under 12ms.</p>
-                </div>
-                <div className="p-8 rounded-[32px] bg-[#131313] border-[#1F1F1F] space-y-4">
-                   <ShieldCheck className="h-6 w-6 text-emerald-500" />
-                   <h3 className="text-xl font-bold text-slate-50 font-display uppercase">Secure Node</h3>
-                   <p className="text-sm text-neutral-500 font-bold uppercase tracking-tight">Every module runs in a dedicated neural sandbox with AES-256 encryption.</p>
-                </div>
-             </div>
-
-             <div className="p-8 rounded-[40px] bg-red-500/[0.02] border border-red-500/10 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8 opacity-10">
-                   <Layers className="h-32 w-32 text-red-500" />
-                </div>
-                <h2 className="text-2xl font-bold text-slate-50 font-display uppercase tracking-tight mb-4">Neural Architecture</h2>
-                  <h3 className="text-slate-50 font-bold">Protocol Overview</h3>
-                <p className="text-neutral-500 font-bold leading-relaxed mb-8">
-                  The MidVox Engine utilizes a decentralized event stream processing model. When a Discord event is received, it is instantly routed to the nearest edge cluster.
-                </p>
-                <div className="bg-black/40 p-6 rounded-[6px] border border-[#1F1F1F] font-mono text-sm text-red-500 mb-8">
-                  $ midvox initialize --cluster-shard [neural_07] --mode enterprise
-                </div>
-             </div>
-          </div>
-
-          <div className="mt-20 pt-12 border-t border-[#1F1F1F] flex items-center justify-between">
-             <div>
-                <p className="text-[10px] font-black uppercase text-neutral-600 tracking-[0.4em] mb-2">Internal Ref</p>
-                <p className="text-sm font-bold text-neutral-400">DOC-ID: CX_7749_B</p>
-             </div>
-             <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-[10px] font-black uppercase text-red-500 tracking-[0.2em]">Live Stream Active</span>
-             </div>
-          </div>
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

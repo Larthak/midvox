@@ -1,89 +1,69 @@
-"use client";
+import type { Metadata } from "next";
+import { Database, Eye, Lock, RefreshCw, ShieldCheck, UserCheck } from "lucide-react";
+import { LegalPage } from "@/components/public/legal-page";
+import { BRAND_NAME } from "@/lib/brand";
 
-import React from "react";
-import Link from "next/link";
-import { Bot, ChevronLeft, ShieldCheck, Lock, Eye, FileText } from "lucide-react";
-import { Button } from "@/components/ui/button";
+export const metadata: Metadata = {
+  title: `Privacy — ${BRAND_NAME}`,
+  description: `What ${BRAND_NAME} stores, why it is stored, and how to remove it.`,
+};
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-[#0C0C0C] text-[#F5F5F5] font-sans">
-      {/* Background Decor */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-red-500/[0.03] blur-[120px] rounded-full" />
-      </div>
-
-      <nav className="fixed top-0 w-full z-50 border-b border-[#1F1F1F] bg-[rgba(12,12,12,0.95)] backdrop-blur-sm px-6 h-20 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-4 group">
-          <div className="h-9 w-9 rounded-xl bg-red-600 flex items-center justify-center mr-4">
-            <Bot className="h-5 w-5 text-slate-50" />
-          </div>
-          <span className="text-xl font-bold text-slate-50 font-display uppercase tracking-tighter">MidVox Engine</span>
-        </Link>
-        <Link href="/">
-          <Button variant="ghost" className="text-neutral-400 hover:text-slate-50 gap-2">
-            <ChevronLeft className="h-4 w-4" />
-            Back to Home
-          </Button>
-        </Link>
-      </nav>
-
-      <main className="relative z-10 pt-40 pb-32 px-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest mb-8">
-            <ShieldCheck className="h-3 w-3" />
-            Privacy Shield v2.0
-          </div>
-
-          <h1 className="text-5xl md:text-7xl font-bold text-slate-50 font-display tracking-tighter uppercase mb-12 italic">
-            Privacy <span className="text-red-500 not-italic">Policy.</span>
-          </h1>
-
-          <div className="bg-[#131313] border-[#1F1F1F] rounded-[40px] p-10 md:p-16 space-y-12">
-            <section className="space-y-6">
-              <div className="flex items-center gap-4 text-slate-50">
-                <div className="h-10 w-10 rounded-[6px] bg-[#1A1A1A] border border-[#1F1F1F] flex items-center justify-center text-red-500">
-                   <Eye className="h-5 w-5" />
-                </div>
-                <h2 className="text-2xl font-bold font-display uppercase tracking-tight">Data Collection</h2>
-              </div>
-              <p className="text-neutral-400 leading-relaxed font-medium">
-                The MidVox Engine collects only the minimum necessary data to function within Discord. This includes your Discord User ID, Server (Guild) ID, and configuration settings provided during setup. We do not store message content unless explicitly configured for logging purposes by server administrators.
-              </p>
-            </section>
-
-            <section className="space-y-6">
-              <div className="flex items-center gap-4 text-slate-50">
-                <div className="h-10 w-10 rounded-[6px] bg-[#1A1A1A] border border-[#1F1F1F] flex items-center justify-center text-red-500">
-                   <Lock className="h-5 w-5" />
-                </div>
-                <h2 className="text-2xl font-bold font-display uppercase tracking-tight">Data Integrity</h2>
-              </div>
-              <p className="text-neutral-400 leading-relaxed font-medium">
-                All configuration data is AES-256 encrypted at rest. Our neural vaults are distributed across global edge nodes, ensuring that your server settings are both secure and instantly available. We never sell or distribute your data to third parties.
-              </p>
-            </section>
-
-            <section className="space-y-6">
-              <div className="flex items-center gap-4 text-slate-50">
-                <div className="h-10 w-10 rounded-[6px] bg-[#1A1A1A] border border-[#1F1F1F] flex items-center justify-center text-red-500">
-                   <FileText className="h-5 w-5" />
-                </div>
-                <h2 className="text-2xl font-bold font-display uppercase tracking-tight">User Rights</h2>
-              </div>
-              <p className="text-neutral-400 leading-relaxed font-medium">
-                You have the right to request a full dump of your data or immediate deletion of all configurations associated with your Discord account or guild. These requests can be initialized through our support matrix or directly within the dashboard settings.
-              </p>
-            </section>
-
-            <div className="pt-12 border-t border-[#1F1F1F]">
-              <p className="text-[10px] font-black uppercase text-neutral-600 tracking-[0.4em]">
-                Last Modified: March 2026 // Neural Jurisdiction: Global Edge Network
-              </p>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
+    <LegalPage
+      eyebrow="Privacy"
+      title="Privacy policy"
+      intro={`This page explains what ${BRAND_NAME} stores when you sign in or use the bot, why we store it, and the choices you have.`}
+      updated="15 November 2026"
+      sections={[
+        {
+          title: "What we collect",
+          icon: Eye,
+          body: [
+            "When you sign in with Discord, we receive your Discord user ID, username, avatar, and the list of servers you belong to. We use the server list only to work out which servers you are allowed to manage.",
+            "When you change a setting, we store that configuration against the server it belongs to. Depending on the modules you enable, the bot may also store feature data such as invite counts, levels and XP, ticket records, reaction-role mappings, and logging settings.",
+          ],
+        },
+        {
+          title: "How we use it",
+          icon: Database,
+          body: [
+            "We use this data to sign you in, show the servers you can manage, apply the settings you save, and run the bot features you enable.",
+            "We also use it to protect the service: rate limiting, abuse prevention, and checking that a request comes from an account with permission to make it.",
+          ],
+        },
+        {
+          title: "Discord sign-in",
+          icon: UserCheck,
+          body: [
+            "Discord sign-in uses OAuth with the identify and guilds scopes. The OAuth access token is used on the server to confirm which servers you can manage. It is kept in your server-side session and is never sent to the browser.",
+            "Your dashboard session is stored in a signed, HTTP-only cookie. Signing out clears that session. You can also remove the app's access at any time in your Discord account settings.",
+          ],
+        },
+        {
+          title: "Bot owner sessions",
+          icon: Lock,
+          body: [
+            "The bot owner can connect the bot's own Discord, YouTube, or Instagram account from a restricted screen. Those saved sessions are encrypted and can only be managed by the bot owner. They are not used for any other purpose.",
+          ],
+        },
+        {
+          title: "Sharing and retention",
+          icon: ShieldCheck,
+          body: [
+            "We do not sell your data. Data is shared only with the infrastructure needed to run the service, such as our hosting provider and the Discord API, or where required by law.",
+            "Server configuration is kept while the bot remains in that server. Removing the bot stops new processing, but existing records may remain until they are deleted. Short-lived backups may keep copies for a limited period.",
+          ],
+        },
+        {
+          title: "Your choices",
+          icon: RefreshCw,
+          body: [
+            "You can change or disable modules from the dashboard, sign out at any time, or remove the bot from your server.",
+            `To request a copy or deletion of stored server data, contact the ${BRAND_NAME} team through the Discord server where you use the bot. We may need to verify that you manage the server before acting on the request.`,
+          ],
+        },
+      ]}
+    />
   );
 }

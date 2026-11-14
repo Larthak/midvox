@@ -17,11 +17,11 @@ export default async function TicketsPage({ params }: { params: { guildId: strin
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h2 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--panel-ink)]">
             <Ticket className="h-6 w-6 text-primary" />
             Ticket System
           </h2>
-          <p className="text-neutral-400 mt-1">Manage private support channels and inquiry categories.</p>
+          <p className="mt-1 text-sm text-[var(--panel-muted)]">Manage private support channels and inquiry categories.</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-[6px] flex items-center gap-2">

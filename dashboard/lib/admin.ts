@@ -15,3 +15,13 @@ export function isDashboardAdmin(userId?: string | null): boolean {
 
   return ids.has(userId);
 }
+
+/**
+ * Bot owner check for the owner-only login screens. This intentionally does not
+ * fall back to NEXT_PUBLIC_ADMIN_IDS: those routes control the bot's own
+ * Discord, YouTube, and Instagram sessions.
+ */
+export function isBotOwner(userId?: string | null): boolean {
+  if (!userId) return false;
+  return (process.env.OWNER_IDS || "").match(/\d{17,20}/g)?.includes(userId) || false;
+}

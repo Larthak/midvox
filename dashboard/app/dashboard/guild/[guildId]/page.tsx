@@ -1,8 +1,6 @@
 import React from "react";
 import {
   Activity,
-  ArrowDownRight,
-  ArrowUpRight,
   BarChart3,
   Hash,
   Layers3,
@@ -58,7 +56,7 @@ function OverviewChart({ chart, index }: { chart: (typeof chartSeries)[number]; 
       <div className="flex items-start justify-between gap-4 px-5 pb-2 pt-5">
         <div>
           <h2 className="text-sm font-semibold text-[var(--panel-ink)]">{chart.title}</h2>
-          <p className="panel-muted mt-1 text-[10px]">{chart.description}</p>
+          <p className="panel-muted mt-1 text-xs">{chart.description}</p>
         </div>
         <div className="panel-surface-soft flex h-9 w-9 items-center justify-center rounded-xl text-[var(--panel-accent-deep)]">
           <Icon className="h-4 w-4" />
@@ -90,7 +88,7 @@ function OverviewChart({ chart, index }: { chart: (typeof chartSeries)[number]; 
           )}
           <path d={chart.primary} fill="none" stroke={chart.color} strokeWidth="1.7" vectorEffect="non-scaling-stroke" />
         </svg>
-        <div className="panel-faint absolute inset-x-5 bottom-4 flex justify-between text-[8px] font-semibold uppercase tracking-wider">
+        <div className="panel-faint absolute inset-x-5 bottom-4 flex justify-between text-[10px] font-medium">
           <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
         </div>
       </div>
@@ -101,10 +99,10 @@ function OverviewChart({ chart, index }: { chart: (typeof chartSeries)[number]; 
 export default async function GuildOverviewPage({ params }: { params: { guildId: string } }) {
   const guild = await api.getGuildDetails(params.guildId);
   const stats = [
-    { label: "Members", value: guild.member_count.toLocaleString(), icon: Users, change: "Live count", positive: true },
-    { label: "Channels", value: guild.channel_count.toLocaleString(), icon: Hash, change: "Synced", positive: true },
-    { label: "Roles", value: guild.role_count.toLocaleString(), icon: ShieldCheck, change: "Synced", positive: true },
-    { label: "Modules", value: "20", icon: Layers3, change: "Available", positive: true },
+    { label: "Members", value: guild.member_count.toLocaleString(), icon: Users, change: "Live count", source: "from Discord" },
+    { label: "Channels", value: guild.channel_count.toLocaleString(), icon: Hash, change: "Synced", source: "from Discord" },
+    { label: "Roles", value: guild.role_count.toLocaleString(), icon: ShieldCheck, change: "Synced", source: "from Discord" },
+    { label: "Modules", value: "20", icon: Layers3, change: "Available", source: "in dashboard" },
   ];
 
   return (
@@ -113,17 +111,13 @@ export default async function GuildOverviewPage({ params }: { params: { guildId:
         <div>
           <div className="mb-1.5 flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--panel-accent)]" />
-            <span className="panel-accent text-[9px] font-bold uppercase tracking-[0.18em]">Overview</span>
+            <span className="panel-accent text-[11px] font-semibold uppercase tracking-[0.08em]">Overview</span>
           </div>
-          <h1 className="text-xl font-semibold text-[var(--panel-ink)] sm:text-2xl">
+          <h1 className="text-2xl font-semibold text-[var(--panel-ink)]">
             Welcome back to <span className="panel-accent">{guild.name}</span>
           </h1>
-          <p className="panel-muted mt-1 text-xs">A complete overview of your server and bot activity.</p>
+          <p className="panel-muted mt-1.5 text-sm">A complete overview of your server and bot activity.</p>
         </div>
-        <button className="panel-surface flex h-10 w-full items-center justify-between gap-6 rounded-full px-4 text-[10px] font-semibold text-[var(--panel-muted)] transition-all hover:-translate-y-0.5 sm:w-auto">
-          Last 7 days
-          <ArrowDownRight className="h-3.5 w-3.5 text-neutral-600" />
-        </button>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -131,19 +125,19 @@ export default async function GuildOverviewPage({ params }: { params: { guildId:
           <article key={stat.label} className="panel-surface group rounded-2xl p-4 transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_32px_rgba(25,27,20,0.08)]">
             <div className="flex items-start justify-between">
               <div>
-                <p className="panel-muted text-[10px] font-semibold">{stat.label}</p>
-                <p className="mt-1.5 text-xl font-semibold tracking-tight text-[var(--panel-ink)]">{stat.value}</p>
+                <p className="panel-muted text-xs font-medium">{stat.label}</p>
+                <p className="mt-1.5 text-2xl font-semibold tracking-tight text-[var(--panel-ink)]">{stat.value}</p>
               </div>
               <div className="panel-surface-soft flex h-10 w-10 items-center justify-center rounded-xl text-[var(--panel-accent-deep)] transition-transform group-hover:scale-105">
                 <stat.icon className="h-4 w-4" />
               </div>
             </div>
             <div className="panel-divider mt-3 flex items-center gap-2 border-t pt-3">
-              <span className="panel-status-pill flex items-center gap-1 rounded-full px-2 py-1 text-[8px] font-bold uppercase">
-                <ArrowUpRight className="h-2.5 w-2.5" />
+              <span className="panel-status-pill flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-semibold">
+                <span className="h-1.5 w-1.5 rounded-full bg-current" />
                 {stat.change}
               </span>
-              <span className="panel-faint text-[9px]">from Discord</span>
+              <span className="panel-faint text-[11px]">{stat.source}</span>
             </div>
           </article>
         ))}
@@ -152,9 +146,9 @@ export default async function GuildOverviewPage({ params }: { params: { guildId:
       <div className="flex items-center justify-between pt-1">
         <div>
           <h2 className="text-sm font-semibold text-[var(--panel-ink)]">Analytics</h2>
-          <p className="panel-muted mt-1 text-[10px]">Visual previews until historical analytics are connected.</p>
+          <p className="panel-muted mt-1 text-xs">Visual previews until historical analytics are connected.</p>
         </div>
-        <div className="panel-faint flex items-center gap-2 text-[9px] font-semibold uppercase tracking-wider">
+        <div className="panel-faint flex items-center gap-2 text-[11px] font-semibold">
           <BarChart3 className="h-3.5 w-3.5 text-[var(--panel-accent-deep)]" />
           Preview
         </div>

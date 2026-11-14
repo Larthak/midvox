@@ -62,7 +62,7 @@ export default function TrackingPage({ params }: { params: { guildId: string } }
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Invite Tracking</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-[var(--panel-ink)]">Invite Tracking</h2>
         <p className="text-muted-foreground">
           Configure where the bot logs invite information when a member joins.
         </p>

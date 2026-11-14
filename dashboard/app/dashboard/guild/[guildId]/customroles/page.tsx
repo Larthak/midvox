@@ -19,11 +19,11 @@ export default async function CustomRolesPage({ params }: { params: { guildId: s
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h2 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--panel-ink)]">
             <Ghost className="h-6 w-6 text-primary" />
             Custom Roles
           </h2>
-          <p className="text-neutral-400 mt-1">Configure predefined roles that can be easily assigned using commands.</p>
+          <p className="mt-1 text-sm text-[var(--panel-muted)]">Configure predefined roles that can be easily assigned using commands.</p>
         </div>
       </div>
 

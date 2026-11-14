@@ -19,11 +19,11 @@ export default async function WelcomePage({ params }: { params: { guildId: strin
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h2 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--panel-ink)]">
             <SmilePlus className="h-6 w-6 text-primary" />
             Welcomer
           </h2>
-          <p className="text-neutral-400 mt-1">Greet new members to your server.</p>
+          <p className="mt-1 text-sm text-[var(--panel-muted)]">Greet new members to your server.</p>
         </div>
       </div>
 

@@ -1,17 +1,14 @@
 import React from "react";
-import { RefreshCcw } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export default function DashboardLoading() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 animate-in fade-in duration-500">
-      <div className="relative">
-        <div className="h-16 w-16 border-4 border-[#1A1A1A] rounded-full" />
-        <RefreshCcw className="h-16 w-16 text-primary animate-spin absolute top-0 left-0" />
-      </div>
-      <div className="space-y-2 text-center">
-        <h3 className="text-slate-50 font-bold text-lg">Initializing System</h3>
-        <p className="text-neutral-500 text-sm animate-pulse">Fetching parameters from edge cortex...</p>
-      </div>
+    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-6 text-center">
+      <Loader2 className="h-6 w-6 animate-spin text-[var(--panel-accent-deep)]" />
+      <p className="text-sm font-semibold text-[var(--panel-ink)]">Loading this page</p>
+      <p className="text-xs text-[var(--panel-muted)]">
+        Fetching the latest data from Discord.
+      </p>
     </div>
   );
 }

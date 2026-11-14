@@ -56,7 +56,7 @@ export default function JoinDMPage({ params }: { params: { guildId: string } }) 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Join DM</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-[var(--panel-ink)]">Join DM</h2>
         <p className="text-muted-foreground">
           Send a private message to new members when they join your server.
         </p>

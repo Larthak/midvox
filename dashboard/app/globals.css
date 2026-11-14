@@ -751,3 +751,33 @@ p, li { line-height: 1.65; }
 @media (max-width: 1023px) {
   .panel-sidebar { box-shadow: 18px 0 45px rgba(25,27,20,.14); }
 }
+
+/* ─── Readability floor for older module screens ───────────────────────── */
+/* Many module forms were built with 8–10px micro labels. Keep their layout,
+   but make the smallest text readable without rewriting every screen. */
+.panel-shell .text-\[8px\],
+.panel-shell .text-\[9px\] {
+  font-size: 0.6875rem;
+  line-height: 1.45;
+}
+.panel-shell .text-\[10px\] {
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.panel-shell label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.panel-shell :where(a, button, [role="button"], summary):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--panel-accent-deep) 72%, transparent);
+  outline-offset: 2px;
+}
+
+.panel-shell :where(input, textarea, select)::placeholder {
+  color: var(--panel-faint);
+}
+

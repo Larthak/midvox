@@ -3,12 +3,57 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
-  Shield, Users, Server, Activity, Database, Cpu, Globe, Lock, Settings, RefreshCw, Youtube, Instagram, ArrowUpRight
+  Activity,
+  ArrowUpRight,
+  Cpu,
+  Database,
+  Globe,
+  Instagram,
+  Lock,
+  RefreshCw,
+  Server,
+  Settings,
+  Shield,
+  Users,
+  Youtube,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { AdminStats, AdminConfig } from "@/types/api";
 import { toast } from "sonner";
+
+type OwnerLogin = {
+  id: string;
+  service: string;
+  description: string;
+  href: string;
+  icon: LucideIcon;
+};
+
+const OWNER_LOGINS: OwnerLogin[] = [
+  {
+    id: "youtube-login-heading",
+    service: "YouTube",
+    description: "Manage the bot's YouTube session for Shorts downloads.",
+    href: "/dashboard/youtube-login",
+    icon: Youtube,
+  },
+  {
+    id: "instagram-login-heading",
+    service: "Instagram",
+    description: "Manage the bot's Instagram session for Reel downloads. Sessions are encrypted.",
+    href: "/dashboard/instagram-login",
+    icon: Instagram,
+  },
+  {
+    id: "discord-login-heading",
+    service: "Discord",
+    description: "Sign in to the Discord account used for bumping. Sessions are encrypted.",
+    href: "/dashboard/discord-login",
+    icon: Users,
+  },
+];
 
 export function AdminContent({ canManageOwnerLogins = false }: { canManageOwnerLogins?: boolean }) {
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -30,7 +75,7 @@ export function AdminContent({ canManageOwnerLogins = false }: { canManageOwnerL
       setNotification(configData.global_notification || "");
     } catch (err) {
       console.error("Failed to fetch admin data:", err);
-      toast.error("Failed to load real-time data");
+      toast.error("Could not load live admin data");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -39,7 +84,7 @@ export function AdminContent({ canManageOwnerLogins = false }: { canManageOwnerL
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(() => fetchData(true), 30000); // Auto refresh every 30s
+    const interval = setInterval(() => fetchData(true), 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -50,9 +95,9 @@ export function AdminContent({ canManageOwnerLogins = false }: { canManageOwnerL
       const newStatus = !config.maintenance_mode;
       await api.updateAdminConfig({ maintenance_mode: newStatus });
       setConfig({ ...config, maintenance_mode: newStatus });
-      toast.success(`Maintenance mode ${newStatus ? 'enabled' : 'disabled'}`);
+      toast.success(`Maintenance mode ${newStatus ? "enabled" : "disabled"}`);
     } catch (err) {
-      toast.error("Failed to update maintenance mode");
+      toast.error("Could not update maintenance mode");
     } finally {
       setSaving(false);
     }
@@ -65,7 +110,7 @@ export function AdminContent({ canManageOwnerLogins = false }: { canManageOwnerL
       if (config) setConfig({ ...config, global_notification: notification });
       toast.success("Broadcast message updated");
     } catch (err) {
-      toast.error("Failed to update broadcast message");
+      toast.error("Could not update the broadcast message");
     } finally {
       setSaving(false);
     }
@@ -73,203 +118,233 @@ export function AdminContent({ canManageOwnerLogins = false }: { canManageOwnerL
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <RefreshCw className="h-10 w-10 text-red-500 animate-spin opacity-20" />
+      <div className="flex min-h-[400px] flex-col items-center justify-center gap-3">
+        <RefreshCw className="h-5 w-5 animate-spin text-[var(--panel-accent-deep)]" />
+        <p className="text-sm text-[var(--panel-muted)]">Loading admin data…</p>
       </div>
     );
   }
 
   const statItems = [
-    { name: "Total Users", value: stats?.total_users || "0", icon: Users, color: "text-blue-500" },
-    { name: "Active Servers", value: stats?.active_servers || "0", icon: Server, color: "text-emerald-500" },
-    { name: "API Latency", value: stats?.api_latency || "0ms", icon: Activity, color: "text-amber-500" },
-    { name: "Database Size", value: stats?.db_size || "0 MB", icon: Database, color: "text-amber-500" },
+    { name: "Total users", value: stats?.total_users || "0", icon: Users },
+    { name: "Active servers", value: stats?.active_servers || "0", icon: Server },
+    { name: "API latency", value: stats?.api_latency || "0ms", icon: Activity },
+    { name: "Database size", value: stats?.db_size || "0 MB", icon: Database },
   ];
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="relative group">
-        <div className="absolute -inset-1 bg-gradient-to-r from-red-500 to-primary-dark rounded-[6px] blur opacity-10 group-hover:opacity-20 transition duration-1000"></div>
-        <div className="relative bg-[#0F0F0F] border border-[#1F1F1F] rounded-[6px] p-8 lg:p-12 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-          <div className="flex items-center gap-6">
-            <div className="h-16 w-16 rounded-[6px] bg-red-500/20 flex items-center justify-center border border-red-500/30 shadow-2xl shadow-red-500/20">
-              <Shield className="h-8 w-8 text-red-500" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-black text-slate-50 tracking-tight font-display">Admin Control Panel</h1>
-              <p className="text-neutral-400 mt-2 font-medium">Restricted access for MidVox administrators only.</p>
-            </div>
-          </div>
-          <button
-            onClick={() => fetchData(true)}
-            className="flex items-center gap-3 bg-red-500/5 px-6 py-3 rounded-[6px] border border-red-500/10 hover:bg-red-500/10 transition-all active:scale-95 group/refresh"
-          >
-            <RefreshCw className={cn("h-4 w-4 text-red-500 transition-all", refreshing && "animate-spin")} />
-            <span className="text-xs font-black uppercase tracking-widest text-red-500">
-              {refreshing ? "Refreshing..." : "Real-time Mode"}
-            </span>
-          </button>
+    <div className="space-y-6">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="flex items-center gap-1.5 text-xs font-medium text-[var(--panel-accent-deep)]">
+            <Shield className="h-3.5 w-3.5" />
+            Restricted
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--panel-ink)] sm:text-[28px]">
+            Admin panel
+          </h1>
+          <p className="mt-1.5 max-w-2xl text-sm text-[var(--panel-muted)]">
+            Bot health, owner logins, and global announcements. Only MidVox administrators can see this page.
+          </p>
         </div>
-      </div>
+
+        <button
+          type="button"
+          onClick={() => fetchData(true)}
+          disabled={refreshing}
+          className="inline-flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-full border border-[var(--panel-line)] bg-[var(--panel-paper)] px-4 text-[13px] font-semibold text-[var(--panel-muted)] transition-colors hover:border-[var(--panel-accent)] hover:text-[var(--panel-ink)] disabled:opacity-60 sm:w-auto"
+        >
+          <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+          {refreshing ? "Refreshing…" : "Refresh"}
+        </button>
+      </header>
 
       {canManageOwnerLogins && (
-        <section className="flex flex-col gap-5 rounded-[6px] border border-[#B9CF7A]/25 bg-[#131710] p-6 sm:flex-row sm:items-center sm:justify-between" aria-labelledby="youtube-login-heading">
-          <div className="flex items-start gap-4">
-            <Youtube className="mt-1 h-6 w-6 shrink-0 text-[#B9CF7A]" aria-hidden="true" />
-            <div>
-              <h2 id="youtube-login-heading" className="text-lg font-bold text-slate-50">YouTube login</h2>
-              <p className="mt-1 text-sm text-neutral-400">Manage the bot&apos;s YouTube session for Shorts downloads. Bot owners only.</p>
-            </div>
+        <section aria-labelledby="owner-logins-heading" className="space-y-3">
+          <div>
+            <h2 id="owner-logins-heading" className="text-[15px] font-semibold text-[var(--panel-ink)]">
+              Bot owner logins
+            </h2>
+            <p className="mt-1 text-xs text-[var(--panel-muted)]">
+              These sessions belong to the bot account, not to your Discord servers.
+            </p>
           </div>
-          <Link href="/dashboard/youtube-login" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md bg-[#B9CF7A] px-5 py-3 text-sm font-semibold text-[#151810] transition-colors hover:bg-[#C6DB8B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#B9CF7A]">
-            Open YouTube login <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
-        </section>
-      )}
 
-      {canManageOwnerLogins && (
-        <section className="flex flex-col gap-5 rounded-[6px] border border-[#B9CF7A]/25 bg-[#131710] p-6 sm:flex-row sm:items-center sm:justify-between" aria-labelledby="instagram-login-heading">
-          <div className="flex items-start gap-4">
-            <Instagram className="mt-1 h-6 w-6 shrink-0 text-[#B9CF7A]" aria-hidden="true" />
-            <div>
-              <h2 id="instagram-login-heading" className="text-lg font-bold text-slate-50">Instagram login</h2>
-              <p className="mt-1 text-sm text-neutral-400">Manage the bot&apos;s Instagram session for Reel downloads. Saved sessions are encrypted. Bot owners only.</p>
-            </div>
-          </div>
-          <Link href="/dashboard/instagram-login" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md bg-[#B9CF7A] px-5 py-3 text-sm font-semibold text-[#151810] transition-colors hover:bg-[#C6DB8B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#B9CF7A]">
-            Open Instagram login <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
-        </section>
-      )}
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+            {OWNER_LOGINS.map((login) => (
+              <div
+                key={login.service}
+                className="panel-surface flex flex-col gap-4 rounded-2xl p-5"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--panel-line)] bg-[var(--panel-raised)] text-[var(--panel-accent-deep)]">
+                    <login.icon className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="text-[13px] font-semibold text-[var(--panel-ink)]">
+                      {login.service} login
+                    </h3>
+                    <p className="mt-1 text-xs leading-5 text-[var(--panel-muted)]">
+                      {login.description}
+                    </p>
+                  </div>
+                </div>
 
-      {canManageOwnerLogins && (
-        <section className="flex flex-col gap-5 rounded-[6px] border border-[#B9CF7A]/25 bg-[#131710] p-6 sm:flex-row sm:items-center sm:justify-between" aria-labelledby="discord-login-heading">
-          <div className="flex items-start gap-4">
-            <Users className="mt-1 h-6 w-6 shrink-0 text-[#B9CF7A]" aria-hidden="true" />
-            <div>
-              <h2 id="discord-login-heading" className="text-lg font-bold text-slate-50">Discord login</h2>
-              <p className="mt-1 text-sm text-neutral-400">Sign in to the Discord account used for bumping. Saved sessions are encrypted. Bot owners only.</p>
-            </div>
-          </div>
-          <Link href="/dashboard/discord-login" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md bg-[#B9CF7A] px-5 py-3 text-sm font-semibold text-[#151810] transition-colors hover:bg-[#C6DB8B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#B9CF7A]">
-            Open Discord login <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
-        </section>
-      )}
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statItems.map((stat) => (
-          <div key={stat.name} className="bg-[#131313] border border-[#1F1F1F]">
-            <div className="flex items-center justify-between mb-4">
-              <div className={cn("p-3 rounded-xl bg-[#1A1A1A]/70 group-hover:scale-110 transition-transform", stat.color)}>
-                <stat.icon className="h-6 w-6" />
+                <Link
+                  href={login.href}
+                  className="mt-auto inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-[var(--panel-line)] bg-[var(--panel-raised)] px-4 text-xs font-semibold text-[var(--panel-ink)] transition-colors hover:border-[var(--panel-accent)]"
+                >
+                  Open login
+                  <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </Link>
               </div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-lg">
-                Live
+            ))}
+          </div>
+        </section>
+      )}
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {statItems.map((stat) => (
+          <div key={stat.name} className="panel-surface rounded-2xl p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-[var(--panel-muted)]">{stat.name}</p>
+                <p className="mt-2 text-2xl font-semibold tabular-nums tracking-tight text-[var(--panel-ink)]">
+                  {stat.value}
+                </p>
+              </div>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--panel-line)] bg-[var(--panel-raised)] text-[var(--panel-accent-deep)]">
+                <stat.icon className="h-4 w-4" />
               </span>
             </div>
-            <p className="text-neutral-500 text-xs font-bold uppercase tracking-widest">{stat.name}</p>
-            <h3 className="text-2xl font-black text-slate-50 mt-1 font-display">{stat.value}</h3>
           </div>
         ))}
       </div>
 
-      {/* System Status Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* API Health */}
-        <div className="lg:col-span-2 bg-[#131313] border border-[#1F1F1F] rounded-[6px] overflow-hidden">
-          <div className="p-8 border-b border-[#1F1F1F] flex items-center justify-between bg-[#0F0F0F]">
-            <div className="flex items-center gap-4">
-              <Activity className="h-5 w-5 text-red-500" />
-              <h3 className="text-lg font-bold text-slate-50">System Nodes Status</h3>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <section className="panel-surface overflow-hidden rounded-2xl lg:col-span-2">
+          <div className="flex items-center justify-between gap-3 border-b border-[var(--panel-line)] px-5 py-4 sm:px-6">
+            <div className="flex items-center gap-2.5">
+              <Activity className="h-4 w-4 text-[var(--panel-accent-deep)]" />
+              <h2 className="text-[15px] font-semibold text-[var(--panel-ink)]">
+                System status
+              </h2>
             </div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-neutral-500">Auto-Polling Active</span>
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[var(--panel-faint)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              Refreshes every 30s
+            </span>
           </div>
-          <div className="p-8 space-y-6">
+
+          <div className="space-y-2 p-5 sm:p-6">
             {stats?.nodes.map((node) => {
               const Icon = node.icon === "Globe" ? Globe : node.icon === "Database" ? Database : node.icon === "Cpu" ? Cpu : Lock;
               const isHealthy = node.status === "Healthy";
               return (
-                <div key={node.name} className="flex items-center justify-between p-4 bg-[#1A1A1A]/50 rounded-[6px] border border-[#1F1F1F] group hover:bg-[#1A1A1A] transition-all">
-                  <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-xl bg-[#1A1A1A] flex items-center justify-center group-hover:bg-neutral-700 transition-colors">
-                      <Icon className="h-5 w-5 text-neutral-400" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-50">{node.name}</h4>
-                      <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest">Load: {node.load}</p>
-                    </div>
-                  </div>
-                  <div className={cn(
-                    "flex items-center gap-2 px-3 py-1.5 rounded-full border",
-                    isHealthy ? "bg-emerald-500/10 border-emerald-500/20" : "bg-amber-500/10 border-amber-500/20"
-                  )}>
-                    <div className={cn("h-1.5 w-1.5 rounded-full", isHealthy ? "bg-emerald-500" : "bg-amber-500")} />
-                    <span className={cn("text-[10px] font-bold uppercase", isHealthy ? "text-emerald-500" : "text-amber-500")}>
-                      {node.status}
+                <div
+                  key={node.name}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-[var(--panel-line)] bg-[var(--panel-raised)] px-3.5 py-3"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--panel-line)] bg-[var(--panel-paper)] text-[var(--panel-muted)]">
+                      <Icon className="h-4 w-4" />
                     </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-[13px] font-semibold text-[var(--panel-ink)]">
+                        {node.name}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-[var(--panel-muted)]">
+                        Load: {node.load}
+                      </p>
+                    </div>
                   </div>
+                  <span
+                    className={cn(
+                      "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                      isHealthy
+                        ? "panel-status-pill"
+                        : "bg-amber-500/10 text-amber-600",
+                    )}
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                    {node.status}
+                  </span>
                 </div>
-              )
+              );
             })}
           </div>
-        </div>
+        </section>
 
-        {/* Global Config */}
-        <div className="bg-[#131313] border border-[#1F1F1F]">
-          <div className="p-8 border-b border-[#1F1F1F] flex items-center gap-4 bg-[#0F0F0F]">
-            <Settings className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-bold text-slate-50">Global Settings</h3>
+        <section className="panel-surface rounded-2xl">
+          <div className="flex items-center gap-2.5 border-b border-[var(--panel-line)] px-5 py-4">
+            <Settings className="h-4 w-4 text-[var(--panel-accent-deep)]" />
+            <h2 className="text-[15px] font-semibold text-[var(--panel-ink)]">
+              Global settings
+            </h2>
           </div>
-          <div className="p-8 flex-1 space-y-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500 pl-1">Maintenance Mode</label>
+
+          <div className="space-y-4 p-5">
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-[var(--panel-muted)]">
+                Maintenance mode
+              </p>
               <button
+                type="button"
                 onClick={handleToggleMaintenance}
                 disabled={saving}
+                aria-pressed={Boolean(config?.maintenance_mode)}
                 className={cn(
-                  "w-full flex items-center justify-between p-4 rounded-[6px] border transition-all",
+                  "flex w-full items-center justify-between gap-3 rounded-xl border p-3.5 text-left transition-colors disabled:opacity-60",
                   config?.maintenance_mode
-                    ? "bg-red-500/10 border-red-500/30 text-red-500"
-                    : "bg-[#1A1A1A]/70 border-[#1F1F1F] text-neutral-600 hover:bg-[#1A1A1A]"
+                    ? "border-red-500/30 bg-red-500/10 text-red-600"
+                    : "border-[var(--panel-line)] bg-[var(--panel-raised)] text-[var(--panel-muted)] hover:border-[var(--panel-accent)]",
                 )}
               >
-                <span className="text-sm font-medium">
-                  {config?.maintenance_mode ? "Restricting Access" : "Standard Operations"}
+                <span className="text-[13px] font-medium">
+                  {config?.maintenance_mode ? "Restricting access" : "Standard operations"}
                 </span>
-                <div className={cn(
-                  "h-6 w-11 rounded-full relative transition-colors duration-300",
-                  config?.maintenance_mode ? "bg-red-500" : "bg-neutral-700"
-                )}>
-                  <div className={cn(
-                    "absolute top-1 h-4 w-4 bg-white rounded-full transition-all duration-300 shadow-sm",
-                    config?.maintenance_mode ? "left-6" : "left-1"
-                  )} />
-                </div>
+                <span
+                  className={cn(
+                    "relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200",
+                    config?.maintenance_mode ? "bg-red-500" : "bg-[var(--panel-line)]",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-all duration-200",
+                      config?.maintenance_mode ? "left-6" : "left-1",
+                    )}
+                  />
+                </span>
               </button>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500 pl-1">Global Notification</label>
+            <div className="space-y-1.5">
+              <label
+                htmlFor="admin-notification"
+                className="text-xs font-medium text-[var(--panel-muted)]"
+              >
+                Global notification
+              </label>
               <textarea
+                id="admin-notification"
                 value={notification}
                 onChange={(e) => setNotification(e.target.value)}
-                className="w-full h-32 bg-[#1A1A1A]/70 border border-[#1F1F1F] rounded-[6px] p-4 text-xs font-medium text-neutral-300 focus:outline-none focus:ring-1 focus:ring-red-500/30 transition-all placeholder:text-neutral-600"
-                placeholder="Message to display across all dashboards..."
+                className="h-28 w-full resize-y rounded-xl border border-[var(--panel-line)] bg-[var(--panel-raised)] p-3.5 text-sm text-[var(--panel-ink)] outline-none transition-colors placeholder:text-[var(--panel-faint)] focus:border-[var(--panel-accent)]"
+                placeholder="A message to show on every dashboard…"
               />
             </div>
 
             <button
+              type="button"
               onClick={handleBroadcast}
               disabled={saving}
-              className="w-full py-4 bg-primary rounded-[6px] font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50"
+              className="inline-flex h-10 w-full items-center justify-center rounded-full bg-primary-light px-4 text-[13px] font-semibold text-[#171A12] transition-colors hover:bg-[#BACF7F] disabled:opacity-60"
             >
-              {saving ? "Processing..." : "Broadcast Message"}
+              {saving ? "Saving…" : "Update broadcast"}
             </button>
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );

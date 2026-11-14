@@ -104,16 +104,18 @@ export default function OwnerLoginBrowser({ service }: { service: "youtube" | "d
     typedText.current = "";
   }, []);
 
-  return <section className="mx-auto max-w-6xl space-y-5 p-6">
-    <h1 className="text-2xl font-bold">{label} login on Railway</h1>
-    <p className="text-sm text-[var(--panel-muted)]">Click a field inside the browser, then type or paste directly. Enter, Tab, Backspace, arrow keys and Ctrl+A work inside it. Press Escape to leave keyboard control. Complete any verification yourself, then save the session.</p>
+  return <section className="mx-auto max-w-6xl space-y-4">
+    <div>
+      <h1 className="text-2xl font-semibold tracking-tight text-[var(--panel-ink)]">{label} login on Railway</h1>
+      <p className="mt-1.5 max-w-3xl text-sm leading-6 text-[var(--panel-muted)]">Click a field inside the browser, then type or paste directly. Enter, Tab, Backspace, arrow keys and Ctrl+A work inside it. Press Escape to leave keyboard control. Complete any verification yourself, then save the session.</p>
+    </div>
     <div className="flex flex-wrap gap-2">
       <Button disabled={busy} onClick={() => action("start")}>Open browser</Button>
       <Button variant="outline" disabled={busy || !running} onClick={() => action(service)}>Return to {label}</Button>
       <Button disabled={busy || !running} onClick={() => action("save")}>Save session and close</Button>
       <Button variant="outline" disabled={busy || !running} onClick={() => action("stop")}>Close browser</Button>
     </div>
-    <p role="status" className="text-sm">{busy ? "Working…" : message}</p>
+    <p role="status" className="text-sm text-[var(--panel-muted)]">{busy ? "Working…" : message}</p>
     {running && <>
       <form className="flex flex-wrap gap-2" onSubmit={event => {
         event.preventDefault(); action("text", { text }); setText("");

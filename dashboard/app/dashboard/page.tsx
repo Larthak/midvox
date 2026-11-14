@@ -1,19 +1,25 @@
 export const dynamic = "force-dynamic";
 
 import React from "react";
+import Link from "next/link";
 import {
-  Users,
-  Zap,
   Activity,
+  ArrowRight,
+  BookOpen,
+  FileText,
+  Plus,
   Server as ServerIcon,
   ShieldAlert,
-  FileText,
-  ArrowRight
+  Users,
+  Zap,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { requireDashboardAccess } from "@/lib/dashboard-access";
 import { MetricCard } from "@/components/dashboard/metric-card";
 
 export default async function DashboardPage() {
+  await requireDashboardAccess();
+
   let botInfo;
   let error = null;
 
@@ -21,47 +27,68 @@ export default async function DashboardPage() {
     botInfo = await api.getBotInfo();
   } catch (err: any) {
     console.error("Failed to fetch bot info:", err);
-    error = err.message || "Failed to connect to the bot API.";
-    // Fallback data for UI structure if API fails
+    error = err?.message || "The bot API did not respond.";
     botInfo = {
-      name: "MidVox Bot",
+      name: "MidVox",
       guilds: 0,
       users: 0,
       commands: 0,
-      latency: "0ms"
+      latency: "—",
     };
   }
 
   const stats = [
-    { name: "Total Guilds", value: botInfo.guilds.toLocaleString(), icon: <ServerIcon className="h-5 w-5 text-primary" /> },
-    { name: "Total Users", value: botInfo.users.toLocaleString(), icon: <Users className="h-5 w-5 text-primary" /> },
-    { name: "Commands", value: botInfo.commands.toLocaleString(), icon: <Zap className="h-5 w-5 text-primary" /> },
-    { name: "API Latency", value: botInfo.latency, icon: <Activity className="h-5 w-5 text-primary" /> },
+    { name: "Servers", value: botInfo.guilds, icon: <ServerIcon className="h-5 w-5 text-[var(--panel-accent-deep)]" /> },
+    { name: "Members reached", value: botInfo.users, icon: <Users className="h-5 w-5 text-[var(--panel-accent-deep)]" /> },
+    { name: "Commands loaded", value: botInfo.commands, icon: <Zap className="h-5 w-5 text-[var(--panel-accent-deep)]" /> },
+    { name: "API latency", value: botInfo.latency, icon: <Activity className="h-5 w-5 text-[var(--panel-accent-deep)]" /> },
+  ];
+
+  const quickActions = [
+    {
+      title: "Manage your servers",
+      description: "Open a server and update its modules and settings.",
+      href: "/dashboard/guilds",
+      icon: ServerIcon,
+    },
+    {
+      title: "Read the documentation",
+      description: "Short guides for every dashboard module.",
+      href: "/docs",
+      icon: BookOpen,
+    },
   ];
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-50 tracking-tight">
-            Overview
-          </h1>
-          <p className="text-sm text-neutral-500 mt-1">
-            Status and live metrics for{" "}
-            <span className="text-primary-light font-medium">{botInfo.name}</span>
-          </p>
-        </div>
+    <div className="space-y-6">
+      <header>
+        <p className="text-xs font-medium text-[var(--panel-accent-deep)]">Overview</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--panel-ink)] sm:text-[28px]">
+          Dashboard
+        </h1>
+        <p className="mt-1.5 text-sm text-[var(--panel-muted)]">
+          Bot health and activity across every server you manage.
+        </p>
+      </header>
 
-        {error && (
-          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium">
-            <ShieldAlert className="h-4 w-4" />
-            <span>{error}</span>
+      {error && (
+        <div
+          role="alert"
+          className="flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3.5"
+        >
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+          <div>
+            <p className="text-[13px] font-semibold text-[var(--panel-ink)]">
+              Live data is temporarily unavailable
+            </p>
+            <p className="mt-0.5 text-xs leading-5 text-[var(--panel-muted)]">
+              Some numbers may be out of date. {error}
+            </p>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => (
           <MetricCard
             key={stat.name}
@@ -72,75 +99,99 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2 bg-[#111111] border border-[#1A1A1A] rounded-xl p-6">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-base font-bold text-slate-50 tracking-tight">
-              Quick Actions
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <section className="panel-surface rounded-2xl p-5 sm:p-6 lg:col-span-2">
+          <div>
+            <h2 className="text-[15px] font-semibold text-[var(--panel-ink)]">
+              Quick actions
             </h2>
+            <p className="mt-1 text-xs text-[var(--panel-muted)]">
+              Jump to the things you use most.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {[
-              { title: "Manage Servers", desc: "View and configure your guilds", icon: ServerIcon, href: "/dashboard/guilds" },
-              { title: "Documentation", desc: "Learn how to use every module", icon: FileText, href: "/docs" },
-            ].map((item) => (
-              <a
+          <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            {quickActions.map((item) => (
+              <Link
                 key={item.title}
                 href={item.href}
-                className="group flex items-center gap-4 p-4 rounded-xl bg-[#0C0C0C] border border-[#1A1A1A] hover:border-amber-500/40 transition-all duration-200 hover:-translate-y-0.5"
+                className="group flex items-start gap-3.5 rounded-xl border border-[var(--panel-line)] bg-[var(--panel-raised)] p-4 transition-colors hover:border-[var(--panel-accent)] hover:bg-[var(--panel-paper)]"
               >
-                <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:scale-105 transition-transform">
-                  <item.icon className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="text-sm font-semibold text-slate-50 group-hover:text-primary-light transition-colors">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--panel-paper)] text-[var(--panel-accent-deep)] shadow-[0_1px_2px_rgba(25,27,20,0.05)]">
+                  <item.icon className="h-4 w-4" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1.5 text-[13px] font-semibold text-[var(--panel-ink)]">
                     {item.title}
-                  </h4>
-                  <p className="text-[11px] text-neutral-500 mt-0.5">{item.desc}</p>
-                </div>
-                <ArrowRight className="h-4 w-4 text-neutral-600 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
-              </a>
+                    <ArrowRight className="h-3.5 w-3.5 text-[var(--panel-faint)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--panel-accent-deep)]" />
+                  </span>
+                  <span className="mt-1 block text-xs leading-5 text-[var(--panel-muted)]">
+                    {item.description}
+                  </span>
+                </span>
+              </Link>
             ))}
           </div>
-        </div>
 
-        <div className="bg-[#111111] border border-[#1A1A1A] rounded-xl p-6 flex flex-col">
-          <h2 className="text-base font-bold text-slate-50 mb-1 tracking-tight">
-            Module Status
+          <a
+            href="/api/invite"
+            className="mt-3 flex items-center gap-2.5 rounded-xl border border-dashed border-[var(--panel-line)] px-4 py-3 text-[13px] font-medium text-[var(--panel-muted)] transition-colors hover:border-[var(--panel-accent)] hover:text-[var(--panel-ink)]"
+          >
+            <Plus className="h-4 w-4 text-[var(--panel-accent-deep)]" />
+            Add MidVox to another server
+            <ArrowRight className="ml-auto h-3.5 w-3.5" />
+          </a>
+        </section>
+
+        <section className="panel-surface rounded-2xl p-5 sm:p-6">
+          <h2 className="text-[15px] font-semibold text-[var(--panel-ink)]">
+            Bot status
           </h2>
-          <p className="text-xs text-neutral-500 mb-5">
-            Global operational health
+          <p className="mt-1 text-xs text-[var(--panel-muted)]">
+            A live snapshot from the MidVox API.
           </p>
 
-          <div className="space-y-2.5">
-            {[
-              { name: 'Gateway', status: 'Optimal' },
-              { name: 'Database', status: 'Synchronized' },
-              { name: 'API', status: 'Operational' }
-            ].map((service) => (
-              <div
-                key={service.name}
-                className="flex items-center justify-between p-3.5 rounded-lg bg-[#0C0C0C] border border-[#1A1A1A]"
+          <div className="mt-4 space-y-2">
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--panel-line)] bg-[var(--panel-raised)] px-3.5 py-3">
+              <span className="text-[13px] font-medium text-[var(--panel-ink)]">
+                Gateway
+              </span>
+              <span
+                className={
+                  error
+                    ? "inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-600"
+                    : "panel-status-pill inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                }
               >
-                <span className="text-xs font-medium text-neutral-300">
-                  {service.name}
-                </span>
-                <div className="flex items-center gap-2.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  <span className="text-[9px] uppercase font-semibold text-emerald-500 tracking-widest">
-                    {service.status}
-                  </span>
-                </div>
-              </div>
-            ))}
+                <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                {error ? "Unavailable" : "Connected"}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--panel-line)] bg-[var(--panel-raised)] px-3.5 py-3">
+              <span className="text-[13px] font-medium text-[var(--panel-ink)]">
+                API latency
+              </span>
+              <span className="text-[13px] tabular-nums text-[var(--panel-muted)]">
+                {botInfo.latency}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--panel-line)] bg-[var(--panel-raised)] px-3.5 py-3">
+              <span className="text-[13px] font-medium text-[var(--panel-ink)]">
+                Commands loaded
+              </span>
+              <span className="text-[13px] tabular-nums text-[var(--panel-muted)]">
+                {botInfo.commands.toLocaleString()}
+              </span>
+            </div>
           </div>
 
-          <button className="mt-auto pt-5 w-full py-2.5 rounded-lg border border-neutral-700 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-400 hover:text-slate-50 hover:bg-[#1A1A1A]/60 transition-colors">
-            System Diagnostics
-          </button>
-        </div>
+          <p className="mt-4 flex items-start gap-2 text-xs leading-5 text-[var(--panel-faint)]">
+            <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            This snapshot refreshes whenever you reload the page.
+          </p>
+        </section>
       </div>
     </div>
   );

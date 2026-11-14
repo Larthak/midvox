@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { AlertTriangle, RefreshCw, Home } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 
 export default function DashboardError({
   error,
@@ -17,37 +16,37 @@ export default function DashboardError({
   }, [error]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center animate-in fade-in zoom-in-95 duration-500">
-      <div className="h-20 w-20 bg-red-500/10 rounded-[6px] flex items-center justify-center mb-6">
-        <AlertTriangle className="h-10 w-10 text-red-500" />
+    <div className="flex min-h-[60vh] flex-col items-center justify-center px-6 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10 text-red-500">
+        <AlertTriangle className="h-5 w-5" />
       </div>
 
-      <h2 className="text-2xl font-black text-slate-50 mb-2 tracking-tight">System Fault Detected</h2>
-      <p className="text-neutral-400 max-w-md mb-8">
-        The neural link experienced an unexpected interruption. This could be due to a connection timeout or an internal API failure.
+      <h2 className="mt-4 text-xl font-semibold text-[var(--panel-ink)]">
+        Something went wrong
+      </h2>
+      <p className="mt-1.5 max-w-md text-sm leading-6 text-[var(--panel-muted)]">
+        This page could not load. Try again, or head back to your dashboard.
       </p>
 
-      <div className="flex flex-col sm:flex-row gap-4 w-full max-w-xs">
-        <Button
+      <div className="mt-6 flex w-full max-w-xs flex-col gap-2.5 sm:flex-row">
+        <button
+          type="button"
           onClick={() => reset()}
-          className="flex-1 gap-2 h-12 font-bold"
+          className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-full bg-primary-light px-4 text-[13px] font-semibold text-[#171A12] transition-colors hover:bg-[#BACF7F]"
         >
           <RefreshCw className="h-4 w-4" />
-          Retry Connection
-        </Button>
-        <Link href="/dashboard" className="flex-1">
-          <Button
-            variant="outline"
-            className="w-full gap-2 h-12 font-bold border-[#1A1A1A]"
-          >
-            <Home className="h-4 w-4" />
-            Go Home
-          </Button>
+          Try again
+        </button>
+        <Link
+          href="/dashboard"
+          className="inline-flex h-10 flex-1 items-center justify-center rounded-full border border-[var(--panel-line)] bg-[var(--panel-paper)] px-4 text-[13px] font-semibold text-[var(--panel-muted)] transition-colors hover:border-[var(--panel-accent)] hover:text-[var(--panel-ink)]"
+        >
+          Back to dashboard
         </Link>
       </div>
 
-      {process.env.NODE_ENV === 'development' && (
-        <pre className="mt-8 p-4 bg-[#1A1A1A] border border-[#1F1F1F] rounded-[6px] text-left text-xs text-red-400 overflow-auto max-w-full font-mono">
+      {process.env.NODE_ENV === "development" && (
+        <pre className="mt-8 max-w-full overflow-auto rounded-xl border border-[var(--panel-line)] bg-[var(--panel-raised)] p-4 text-left text-xs text-red-600">
           {error.message}
         </pre>
       )}

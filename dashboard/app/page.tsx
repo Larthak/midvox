@@ -210,14 +210,21 @@ export default function HomePage() {
 
   const openPanel = async () => {
     if (isSigningIn || status === "loading") return;
+
+    const requested = new URLSearchParams(window.location.search).get("callbackUrl");
+    const callbackUrl =
+      requested && requested.startsWith("/") && !requested.startsWith("//")
+        ? requested
+        : "/dashboard";
+
     if (isAuthenticated) {
-      router.push("/dashboard");
+      router.push(callbackUrl);
       return;
     }
 
     setIsSigningIn(true);
     try {
-      await signIn("discord", { callbackUrl: "/dashboard" });
+      await signIn("discord", { callbackUrl });
     } catch {
       setIsSigningIn(false);
     }

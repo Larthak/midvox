@@ -68,11 +68,11 @@ export default function InvcRolePage({ params }: { params: { guildId: string } }
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h2 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--panel-ink)]">
             <Volume2 className="h-6 w-6 text-primary" />
             Voice Role
           </h2>
-          <p className="text-neutral-400 mt-1">Automatically assign a role when members join a voice channel.</p>
+          <p className="mt-1 text-sm text-[var(--panel-muted)]">Automatically assign a role when members join a voice channel.</p>
         </div>
       </div>
 

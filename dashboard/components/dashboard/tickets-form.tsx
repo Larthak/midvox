@@ -3,25 +3,24 @@
 import React, { useState } from "react";
 import {
   Plus,
-  ExternalLink,
   Mail,
   Zap,
   Tag,
-  X,
   Save,
   Trash2,
   Settings2,
   Edit3,
   RefreshCcw,
   MessageSquare,
-  Hash,
-  Shield
+  Shield,
+  Ticket,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Modal } from "@/components/ui/modal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TicketConfig, TicketCategory, TicketEmbed } from "@/types/api";
 
@@ -29,6 +28,8 @@ interface TicketsFormProps {
   initialConfig: TicketConfig;
   guildId: string;
 }
+
+const labelClass = "text-xs font-medium text-[var(--panel-muted)]";
 
 export function TicketsForm({ initialConfig, guildId }: TicketsFormProps) {
   const [config, setConfig] = useState<TicketConfig>(initialConfig);
@@ -51,9 +52,9 @@ export function TicketsForm({ initialConfig, guildId }: TicketsFormProps) {
     const promise = api.updateTickets(guildId, updateData);
 
     toast.promise(promise, {
-      loading: 'Updating ticket settings...',
-      success: 'Settings updated successfully',
-      error: 'Failed to update settings',
+      loading: "Updating ticket settings…",
+      success: "Settings updated",
+      error: "Could not update settings",
     });
 
     try {
@@ -72,7 +73,7 @@ export function TicketsForm({ initialConfig, guildId }: TicketsFormProps) {
   const handleAddCategory = () => {
     setEditingCategory({
       index: -1,
-      data: { name: "", emoji: "ðŸ“©", staff_roles: [], button_style: 2, discord_category_id: "" }
+      data: { name: "", emoji: "📩", staff_roles: [], button_style: 2, discord_category_id: "" }
     });
     setIsAdding(true);
   };
@@ -117,323 +118,423 @@ export function TicketsForm({ initialConfig, guildId }: TicketsFormProps) {
 
   return (
     <>
-      {/* Category Editor Modal */}
-      {editingCategory && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-           <div className="bg-[#111111] border border-[#1A1A1A] rounded-[6px] w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-6 border-b border-[#1A1A1A] flex items-center justify-between bg-[#0F0F0F]">
-                <h3 className="font-bold text-lg text-slate-50 flex items-center gap-2">
-                   {isAdding ? <Plus className="h-5 w-5 text-primary" /> : <Edit3 className="h-5 w-5 text-primary" />}
-                   {isAdding ? "Add Category" : "Edit Category"}
-                </h3>
-                <button onClick={() => setEditingCategory(null)} className="text-neutral-500 hover:text-slate-50 transition-colors">
-                   <X className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="p-8 space-y-6">
-                <div className="space-y-2">
-                   <label className="text-xs font-black uppercase text-neutral-500 tracking-widest">Category Name</label>
-                   <Input
-                      value={editingCategory.data.name}
-                      onChange={(e) => setEditingCategory({...editingCategory, data: {...editingCategory.data, name: e.target.value}})}
-                      placeholder="e.g. Bug Reports"
-                   />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase text-neutral-500 tracking-widest">Emoji Icon</label>
-                    <Input
-                        value={editingCategory.data.emoji || ""}
-                        onChange={(e) => setEditingCategory({...editingCategory, data: {...editingCategory.data, emoji: e.target.value}})}
-                        placeholder="e.g. ðŸ›"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase text-neutral-500 tracking-widest">Staff Roles (IDs)</label>
-                    <Input
-                        value={editingCategory.data.staff_roles.join(", ")}
-                        onChange={(e) => {
-                          const roles = e.target.value.split(",").map(id => id.trim()).filter(id => id && !isNaN(Number(id))).map(Number);
-                          setEditingCategory({
-                            ...editingCategory,
-                            data: { ...editingCategory.data, staff_roles: roles }
-                          })
-                        }}
-                        placeholder="ID1, ID2..."
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase text-neutral-500 tracking-widest">Button Style</label>
-                    <Select
-                      value={String(editingCategory.data.button_style || 2)}
-                      onValueChange={(val) => setEditingCategory({
-                        ...editingCategory,
-                        data: { ...editingCategory.data, button_style: parseInt(val) }
-                      })}
-                    >
-                      <SelectTrigger className="bg-[#0F0F0F] border-[#1A1A1A]">
-                        <SelectValue placeholder="Select Style" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-[#111111] border-[#1A1A1A]">
-                        <SelectItem value="2">Blurple</SelectItem>
-                        <SelectItem value="1">Grey</SelectItem>
-                        <SelectItem value="3">Green</SelectItem>
-                        <SelectItem value="4">Red</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase text-neutral-500 tracking-widest">Discord Category ID</label>
-                    <Input
-                        value={editingCategory.data.discord_category_id || ""}
-                        onChange={(e) => setEditingCategory({
-                          ...editingCategory,
-                          data: { ...editingCategory.data, discord_category_id: e.target.value }
-                        })}
-                        placeholder="Created tickets go here"
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-4 flex gap-3">
-                   <Button variant="outline" className="flex-1" onClick={() => setEditingCategory(null)}>Cancel</Button>
-                   <Button className="flex-1 gap-2" onClick={handleSaveCategory} disabled={saving || !editingCategory.data.name}>
-                     {saving ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                     Save Category
-                   </Button>
-                </div>
-              </div>
-           </div>
-        </div>
-      )}
-
-      {/* Embed Appearance Editor Modal */}
-      {editingEmbed && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-           <div className="bg-[#111111] border border-[#1A1A1A] rounded-[6px] w-full max-w-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-6 border-b border-[#1A1A1A] flex items-center justify-between bg-[#0F0F0F]">
-                <h3 className="font-bold text-lg text-slate-50 flex items-center gap-2">
-                   <Edit3 className="h-5 w-5 text-primary" />
-                   Customize Panel Appearance
-                </h3>
-                <button onClick={() => setEditingEmbed(null)} className="text-neutral-500 hover:text-slate-50 transition-colors">
-                   <X className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                <div className="space-y-2">
-                   <label className="text-xs font-black uppercase text-neutral-500 tracking-widest">Embed Title</label>
-                   <Input
-                      value={editingEmbed.title || ""}
-                      onChange={(e) => setEditingEmbed({...editingEmbed, title: e.target.value})}
-                      placeholder="e.g. Support Department"
-                   />
-                </div>
-                <div className="space-y-2">
-                   <label className="text-xs font-black uppercase text-neutral-500 tracking-widest">Embed Description</label>
-                   <Textarea
-                      value={editingEmbed.description || ""}
-                      onChange={(e) => setEditingEmbed({...editingEmbed, description: e.target.value})}
-                      placeholder="Open a ticket below to talk to our staff..."
-                      className="h-24"
-                   />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase text-neutral-500 tracking-widest">Color (Decimal)</label>
-                    <Input
-                        value={editingEmbed.color || ""}
-                        onChange={(e) => setEditingEmbed({...editingEmbed, color: e.target.value ? parseInt(e.target.value) : null})}
-                        placeholder="e.g. 16711680 for Red"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase text-neutral-500 tracking-widest">Thumbnail URL</label>
-                    <Input
-                        value={editingEmbed.thumbnail_url || ""}
-                        onChange={(e) => setEditingEmbed({...editingEmbed, thumbnail_url: e.target.value})}
-                        placeholder="Small top-right image"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                   <label className="text-xs font-black uppercase text-neutral-500 tracking-widest">Main Image URL</label>
-                   <Input
-                      value={editingEmbed.image_url || ""}
-                      onChange={(e) => setEditingEmbed({...editingEmbed, image_url: e.target.value})}
-                      placeholder="Large bottom image"
-                   />
-                </div>
-
-                <div className="pt-4 flex gap-3">
-                   <Button variant="outline" className="flex-1" onClick={() => setEditingEmbed(null)}>Cancel</Button>
-                   <Button className="flex-1 gap-2" onClick={handleSaveEmbed} disabled={saving}>
-                     {saving ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                     Save Appearance
-                   </Button>
-                </div>
-              </div>
-           </div>
-        </div>
-      )}
-
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Stats & Setup */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-[#111111] border border-[#1A1A1A] rounded-[6px] p-8 shadow-xl space-y-8">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-primary/10 text-primary"><Settings2 className="h-5 w-5" /></div>
-              <h3 className="text-xl font-bold text-slate-50">Global Configuration</h3>
+      <Modal
+        open={Boolean(editingCategory)}
+        onClose={() => setEditingCategory(null)}
+        title={isAdding ? "Add ticket category" : "Edit ticket category"}
+        description="Categories become the buttons or options on your ticket panel."
+        icon={isAdding ? Plus : Edit3}
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => setEditingCategory(null)}
+              className="h-10"
+            >
+              Cancel
+            </Button>
+            <Button
+              className="h-10 gap-2"
+              onClick={handleSaveCategory}
+              disabled={saving || !editingCategory?.data.name}
+            >
+              {saving ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Save category
+            </Button>
+          </>
+        }
+      >
+        {editingCategory && (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label htmlFor="ticket-category-name" className={labelClass}>
+                Category name
+              </label>
+              <Input
+                id="ticket-category-name"
+                value={editingCategory.data.name}
+                onChange={(e) => setEditingCategory({...editingCategory, data: {...editingCategory.data, name: e.target.value}})}
+                placeholder="e.g. Bug reports"
+              />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-neutral-500 tracking-widest">Panel Channel ID</label>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label htmlFor="ticket-category-emoji" className={labelClass}>
+                  Emoji
+                </label>
                 <Input
+                  id="ticket-category-emoji"
+                  value={editingCategory.data.emoji || ""}
+                  onChange={(e) => setEditingCategory({...editingCategory, data: {...editingCategory.data, emoji: e.target.value}})}
+                  placeholder="e.g. 📩"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="ticket-category-roles" className={labelClass}>
+                  Staff role IDs
+                </label>
+                <Input
+                  id="ticket-category-roles"
+                  value={editingCategory.data.staff_roles.join(", ")}
+                  onChange={(e) => {
+                    const roles = e.target.value.split(",").map(id => id.trim()).filter(id => id && !isNaN(Number(id))).map(Number);
+                    setEditingCategory({
+                      ...editingCategory,
+                      data: { ...editingCategory.data, staff_roles: roles }
+                    })
+                  }}
+                  placeholder="Comma separated"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className={labelClass}>Button style</label>
+                <Select
+                  value={String(editingCategory.data.button_style || 2)}
+                  onValueChange={(val) => setEditingCategory({
+                    ...editingCategory,
+                    data: { ...editingCategory.data, button_style: parseInt(val) }
+                  })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select style" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="2">Blurple</SelectItem>
+                    <SelectItem value="1">Grey</SelectItem>
+                    <SelectItem value="3">Green</SelectItem>
+                    <SelectItem value="4">Red</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="ticket-category-channel" className={labelClass}>
+                  Discord category ID
+                </label>
+                <Input
+                  id="ticket-category-channel"
+                  value={editingCategory.data.discord_category_id || ""}
+                  onChange={(e) => setEditingCategory({
+                    ...editingCategory,
+                    data: { ...editingCategory.data, discord_category_id: e.target.value }
+                  })}
+                  placeholder="Where tickets are created"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={Boolean(editingEmbed)}
+        onClose={() => setEditingEmbed(null)}
+        title="Customize panel appearance"
+        description="This is the message members see when they open a ticket."
+        icon={Edit3}
+        className="sm:max-w-xl"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => setEditingEmbed(null)}
+              className="h-10"
+            >
+              Cancel
+            </Button>
+            <Button className="h-10 gap-2" onClick={handleSaveEmbed} disabled={saving}>
+              {saving ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Save appearance
+            </Button>
+          </>
+        }
+      >
+        {editingEmbed && (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label htmlFor="ticket-embed-title" className={labelClass}>
+                Embed title
+              </label>
+              <Input
+                id="ticket-embed-title"
+                value={editingEmbed.title || ""}
+                onChange={(e) => setEditingEmbed({...editingEmbed, title: e.target.value})}
+                placeholder="e.g. Support department"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="ticket-embed-description" className={labelClass}>
+                Embed description
+              </label>
+              <Textarea
+                id="ticket-embed-description"
+                value={editingEmbed.description || ""}
+                onChange={(e) => setEditingEmbed({...editingEmbed, description: e.target.value})}
+                placeholder="Open a ticket below to talk to our staff…"
+                className="h-24"
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label htmlFor="ticket-embed-color" className={labelClass}>
+                  Color (decimal)
+                </label>
+                <Input
+                  id="ticket-embed-color"
+                  value={editingEmbed.color || ""}
+                  onChange={(e) => setEditingEmbed({...editingEmbed, color: e.target.value ? parseInt(e.target.value) : null})}
+                  placeholder="e.g. 16711680 for red"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="ticket-embed-thumbnail" className={labelClass}>
+                  Thumbnail URL
+                </label>
+                <Input
+                  id="ticket-embed-thumbnail"
+                  value={editingEmbed.thumbnail_url || ""}
+                  onChange={(e) => setEditingEmbed({...editingEmbed, thumbnail_url: e.target.value})}
+                  placeholder="Small top-right image"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="ticket-embed-image" className={labelClass}>
+                Main image URL
+              </label>
+              <Input
+                id="ticket-embed-image"
+                value={editingEmbed.image_url || ""}
+                onChange={(e) => setEditingEmbed({...editingEmbed, image_url: e.target.value})}
+                placeholder="Large bottom image"
+              />
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <div className="space-y-5 lg:col-span-2">
+          <section className="panel-surface rounded-2xl p-5 sm:p-6">
+            <div className="flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--panel-line)] bg-[var(--panel-raised)] text-[var(--panel-accent-deep)]">
+                <Settings2 className="h-4 w-4" />
+              </span>
+              <div>
+                <h2 className="text-[15px] font-semibold text-[var(--panel-ink)]">
+                  Global configuration
+                </h2>
+                <p className="mt-0.5 text-xs text-[var(--panel-muted)]">
+                  Channels and roles used by every ticket category.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <label htmlFor="ticket-panel-channel" className={labelClass}>
+                  Panel channel ID
+                </label>
+                <Input
+                  id="ticket-panel-channel"
                   value={config.panel_channel || ""}
                   onChange={(e) => setConfig({...config, panel_channel: e.target.value})}
                   placeholder="Where the ticket panel lives"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-neutral-500 tracking-widest">Logging Channel ID</label>
+              <div className="space-y-1.5">
+                <label htmlFor="ticket-log-channel" className={labelClass}>
+                  Logging channel ID
+                </label>
                 <Input
+                  id="ticket-log-channel"
                   value={config.logging_channel || ""}
                   onChange={(e) => setConfig({...config, logging_channel: e.target.value})}
                   placeholder="Where transcripts go"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-neutral-500 tracking-widest">Closed Tickets Category ID</label>
+              <div className="space-y-1.5">
+                <label htmlFor="ticket-closed-category" className={labelClass}>
+                  Closed tickets category ID
+                </label>
                 <Input
+                  id="ticket-closed-category"
                   value={config.closed_category || ""}
                   onChange={(e) => setConfig({...config, closed_category: e.target.value})}
                   placeholder="Archive closed tickets here"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-neutral-500 tracking-widest">Panel Interaction Type</label>
+              <div className="space-y-1.5">
+                <label className={labelClass}>Panel interaction type</label>
                 <Select
                   value={config.panel_type || "button"}
                   onValueChange={(val) => setConfig({...config, panel_type: val})}
                 >
-                  <SelectTrigger className="bg-[#0F0F0F] border-[#1A1A1A]">
-                    <SelectValue placeholder="Select Type" />
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#111111] border-[#1A1A1A]">
+                  <SelectContent>
                     <SelectItem value="button">Buttons</SelectItem>
-                    <SelectItem value="dropdown">Dropdown Menu</SelectItem>
+                    <SelectItem value="dropdown">Dropdown menu</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-xs font-black uppercase text-neutral-500 tracking-widest">Global Staff Role IDs</label>
+              <div className="space-y-1.5 md:col-span-2">
+                <label htmlFor="ticket-staff-roles" className={labelClass}>
+                  Global staff role IDs
+                </label>
                 <Input
+                  id="ticket-staff-roles"
                   value={config.staff_roles.join(", ")}
                   onChange={(e) => {
                     const roles = e.target.value.split(",").map(id => id.trim()).filter(id => id && !isNaN(Number(id))).map(Number);
                     setConfig({...config, staff_roles: roles})
                   }}
-                  placeholder="ID1, ID2... These roles can see all tickets"
+                  placeholder="Comma separated. These roles can see all tickets."
                 />
               </div>
             </div>
 
-            <Button onClick={handleSaveGlobal} disabled={saving} className="w-full gap-2" variant="secondary">
+            <Button onClick={handleSaveGlobal} disabled={saving} className="mt-5 w-full gap-2" variant="secondary">
               {saving ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Save Core Settings
+              Save core settings
             </Button>
-          </div>
+          </section>
 
-          {/* Categories Section */}
-          <section className="bg-[#111111] border border-[#1A1A1A] rounded-[6px] overflow-hidden shadow-xl">
-            <div className="p-6 border-b border-[#1A1A1A] flex items-center justify-between bg-[#0F0F0F]/60">
-              <div className="flex items-center gap-2">
-                <Tag className="h-5 w-5 text-primary" />
-                <h3 className="font-bold text-slate-50">Ticket Categories</h3>
+          <section className="panel-surface overflow-hidden rounded-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--panel-line)] px-5 py-4 sm:px-6">
+              <div className="flex items-center gap-2.5">
+                <Tag className="h-4 w-4 text-[var(--panel-accent-deep)]" />
+                <div>
+                  <h2 className="text-[15px] font-semibold text-[var(--panel-ink)]">
+                    Ticket categories
+                  </h2>
+                  <p className="mt-0.5 text-xs text-[var(--panel-muted)]">
+                    {config.categories.length} configured
+                  </p>
+                </div>
               </div>
-              <Button size="sm" variant="outline" className="h-8 gap-1 text-xs border-primary/20 text-primary hover:bg-primary/10" onClick={handleAddCategory}>
-                 <Plus className="h-3 w-3" />
-                 Add New
+              <Button size="sm" variant="outline" className="h-9 gap-1.5" onClick={handleAddCategory}>
+                <Plus className="h-3.5 w-3.5" />
+                Add
               </Button>
             </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {config.categories.map((cat, i) => (
-                  <div key={i} className="flex items-center justify-between p-4 bg-[#0F0F0F] rounded-[6px] border border-neutral-200/70 hover:border-primary/30 transition-all group">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-xl bg-[#1A1A1A] flex items-center justify-center text-xl shadow-inner">
-                        {cat.emoji || 'ðŸ“©'}
+
+            <div className="p-5 sm:p-6">
+              {config.categories.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-[var(--panel-line)] px-5 py-8 text-center">
+                  <Ticket className="h-5 w-5 text-[var(--panel-faint)]" />
+                  <p className="text-[13px] font-medium text-[var(--panel-ink)]">
+                    No categories yet
+                  </p>
+                  <p className="max-w-xs text-xs leading-5 text-[var(--panel-muted)]">
+                    Add a category to give members a clear reason to open a ticket.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  {config.categories.map((cat, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-[var(--panel-line)] bg-[var(--panel-raised)] p-3.5 transition-colors hover:border-[var(--panel-accent)]"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--panel-line)] bg-[var(--panel-paper)] text-lg">
+                          {cat.emoji || "📩"}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-[13px] font-semibold text-[var(--panel-ink)]">
+                            {cat.name}
+                          </p>
+                          <p className="mt-0.5 flex items-center gap-1 text-[11px] text-[var(--panel-muted)]">
+                            <Shield className="h-3 w-3" />
+                            {cat.staff_roles && cat.staff_roles.length > 0
+                              ? `${cat.staff_roles.length} staff roles`
+                              : "Global staff"}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-bold text-neutral-200 group-hover:text-slate-50 transition-colors">{cat.name}</span>
-                        <span className="text-[10px] text-neutral-500 flex items-center gap-1 font-mono">
-                          <Shield className="h-2 w-2" />
-                          {cat.staff_roles && cat.staff_roles.length > 0 ? `${cat.staff_roles.length} Staff Roles` : 'Global Staff'}
-                        </span>
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingCategory({index: i, data: {...cat}});
+                            setIsAdding(false);
+                          }}
+                          className="rounded-lg p-1.5 text-[var(--panel-muted)] transition-colors hover:bg-[var(--panel-paper)] hover:text-[var(--panel-ink)]"
+                          aria-label={`Edit ${cat.name}`}
+                        >
+                          <Settings2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCategory(i)}
+                          className="rounded-lg p-1.5 text-[var(--panel-muted)] transition-colors hover:bg-red-500/10 hover:text-red-500"
+                          aria-label={`Remove ${cat.name}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                       <button onClick={() => {
-                         setEditingCategory({index: i, data: {...cat}});
-                         setIsAdding(false);
-                       }} className="p-2 hover:bg-[#1A1A1A] rounded-lg text-neutral-400 hover:text-primary transition-colors">
-                         <Settings2 className="h-4 w-4" />
-                       </button>
-                       <button onClick={() => handleRemoveCategory(i)} className="p-2 hover:bg-red-500/10 rounded-lg text-neutral-400 hover:text-red-500 transition-colors">
-                         <Trash2 className="h-4 w-4" />
-                       </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
         </div>
 
-        {/* Right Column: Stats & Configuration */}
-        <div className="space-y-6">
-          <div className="bg-[#111111] border border-[#1A1A1A] p-6 rounded-[6px] group shadow-lg">
-              <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 bg-primary/10 rounded-[6px] text-primary group-hover:scale-110 transition-transform">
-                    <MessageSquare className="h-6 w-6" />
-                  </div>
-                  <div className="h-2 w-2 rounded-full bg-primary shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
-              </div>
-              <p className="text-sm font-medium text-neutral-500">Currently Open</p>
-              <h3 className="text-3xl font-black text-slate-50 mt-1">{config.open_ticket_count} Tickets</h3>
+        <div className="space-y-5">
+          <div className="panel-surface rounded-2xl p-5">
+            <div className="flex items-center justify-between">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--panel-line)] bg-[var(--panel-raised)] text-[var(--panel-accent-deep)]">
+                <MessageSquare className="h-4 w-4" />
+              </span>
+              <span className="panel-status-pill inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold">
+                <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                Live
+              </span>
+            </div>
+            <p className="mt-4 text-xs font-medium text-[var(--panel-muted)]">
+              Currently open
+            </p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight text-[var(--panel-ink)]">
+              {config.open_ticket_count} {config.open_ticket_count === 1 ? "ticket" : "tickets"}
+            </p>
           </div>
 
-          <section className="bg-gradient-to-br from-primary/10 to-transparent border border-primary/20 rounded-[6px] p-6 relative overflow-hidden group">
-            <div className="absolute -right-4 -top-4 opacity-[0.03] group-hover:scale-110 transition-transform">
-              <Mail className="h-32 w-32 text-slate-50" />
+          <section className="panel-surface rounded-2xl p-5">
+            <div className="flex items-center gap-2.5">
+              <Zap className="h-4 w-4 text-[var(--panel-accent-deep)]" />
+              <h2 className="text-[15px] font-semibold text-[var(--panel-ink)]">
+                Panel appearance
+              </h2>
             </div>
-            <div className="flex items-center gap-2 mb-4">
-              <Zap className="h-5 w-5 text-primary" />
-              <h3 className="font-bold text-slate-50">Panel Appearance</h3>
+
+            <div className="mt-4 space-y-2.5">
+              <div className="rounded-xl border border-[var(--panel-line)] bg-[var(--panel-raised)] p-3.5">
+                <p className="text-[11px] font-medium text-[var(--panel-muted)]">Title</p>
+                <p className="mt-1 truncate text-[13px] font-medium text-[var(--panel-ink)]">
+                  {config.embed.title || "Support department"}
+                </p>
+              </div>
+              <div className="rounded-xl border border-[var(--panel-line)] bg-[var(--panel-raised)] p-3.5">
+                <p className="text-[11px] font-medium text-[var(--panel-muted)]">Description</p>
+                <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--panel-ink)]">
+                  {config.embed.description || "Open a ticket below to talk to our staff."}
+                </p>
+              </div>
             </div>
-            <div className="space-y-3 relative z-10">
-               <div className="p-3 bg-[#1A1A1A]/70 rounded-xl border border-neutral-200/70">
-                  <p className="text-[10px] uppercase font-bold text-neutral-500 mb-1">Title</p>
-                  <p className="text-sm text-neutral-200 font-medium truncate">{config.embed.title || 'Support Department'}</p>
-               </div>
-               <div className="p-3 bg-[#1A1A1A]/70 rounded-xl border border-neutral-200/70">
-                  <p className="text-[10px] uppercase font-bold text-neutral-500 mb-1">Description</p>
-                  <p className="text-xs text-neutral-400 line-clamp-2 leading-relaxed">
-                    {config.embed.description || 'Open a ticket below to talk to our staff.'}
-                  </p>
-               </div>
-            </div>
+
             <Button
               variant="secondary"
-              className="w-full mt-6 py-5 text-xs font-bold uppercase tracking-wider"
+              className="mt-4 h-10 w-full gap-2"
               onClick={() => setEditingEmbed({...config.embed})}
             >
-              Edit Appearance
+              <Mail className="h-4 w-4" />
+              Edit appearance
             </Button>
           </section>
         </div>

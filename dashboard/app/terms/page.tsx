@@ -1,89 +1,70 @@
-"use client";
+import type { Metadata } from "next";
+import { CircleAlert, FileCheck2, Gauge, ShieldCheck, UserCheck, Wrench } from "lucide-react";
+import { LegalPage } from "@/components/public/legal-page";
+import { BRAND_NAME } from "@/lib/brand";
 
-import React from "react";
-import Link from "next/link";
-import { Bot, ChevronLeft, Scale, Terminal, ShieldAlert, Cpu } from "lucide-react";
-import { Button } from "@/components/ui/button";
+export const metadata: Metadata = {
+  title: `Terms — ${BRAND_NAME}`,
+  description: `The rules for using ${BRAND_NAME} in your Discord server.`,
+};
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-[#0C0C0C] text-[#F5F5F5] font-sans">
-      {/* Background Decor */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute bottom-[-10%] left-[-5%] w-[40%] h-[40%] bg-red-600/[0.03] blur-[120px] rounded-full" />
-      </div>
-
-      <nav className="fixed top-0 w-full z-50 border-b border-[#1F1F1F] bg-[rgba(12,12,12,0.95)] backdrop-blur-sm px-6 h-20 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-4 group">
-          <div className="h-10 w-10 rounded-xl bg-red-600 flex items-center justify-center group-hover:rotate-12 transition-transform">
-            <Bot className="h-5 w-5 text-slate-50" />
-          </div>
-          <span className="text-xl font-bold text-slate-50 font-display uppercase tracking-tighter">{process.env.NEXT_PUBLIC_BRAND_NAME || "MidVox"} Engine</span>
-        </Link>
-        <Link href="/">
-          <Button variant="ghost" className="text-neutral-400 hover:text-slate-50 gap-2">
-            <ChevronLeft className="h-4 w-4" />
-            Back to Home
-          </Button>
-        </Link>
-      </nav>
-
-      <main className="relative z-10 pt-40 pb-32 px-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest mb-8">
-            <Scale className="h-3 w-3" />
-            Neural Protocol v2.4
-          </div>
-
-          <h1 className="text-5xl md:text-7xl font-bold text-slate-50 font-display tracking-tighter uppercase mb-12 italic text-right">
-            Terms of <span className="text-red-500 not-italic">Service.</span>
-          </h1>
-
-          <div className="bg-[#131313] border-[#1F1F1F] rounded-[40px] p-10 md:p-16 space-y-12 bg-gradient-to-br from-white/[0.01] to-transparent">
-            <section className="space-y-6">
-              <div className="flex items-center gap-4 text-slate-50">
-                <div className="h-10 w-10 rounded-[6px] bg-[#1A1A1A] border border-[#1F1F1F] flex items-center justify-center text-red-500">
-                   <Terminal className="h-5 w-5" />
-                </div>
-                <h2 className="text-2xl font-bold font-display uppercase tracking-tight">Acceptance of Protocol</h2>
-              </div>
-              <p className="text-neutral-400 leading-relaxed font-medium">
-                By integrating the {process.env.NEXT_PUBLIC_BRAND_NAME || "MidVox"} Engine into your Discord server, you agree to abide by these terms. The engine is provided &quot;as is,&quot; and while we strive for 100% uptime through our neural edge clusters, we are not liable for any data loss resulting from third-party API disruptions.
-              </p>
-            </section>
-
-            <section className="space-y-6">
-              <div className="flex items-center gap-4 text-slate-50">
-                <div className="h-10 w-10 rounded-[6px] bg-[#1A1A1A] border border-[#1F1F1F] flex items-center justify-center text-red-500">
-                   <ShieldAlert className="h-5 w-5" />
-                </div>
-                <h2 className="text-2xl font-bold font-display uppercase tracking-tight">Usage Constraints</h2>
-              </div>
-              <p className="text-neutral-400 leading-relaxed font-medium">
-                You may not use the {process.env.NEXT_PUBLIC_BRAND_NAME || "MidVox"} Engine for any illicit activities, including but not limited to: automated harassment, token logging, or raid coordination. Violation of these constraints will result in immediate neural deauthorization and blacklisting from the global cluster network.
-              </p>
-            </section>
-
-            <section className="space-y-6">
-              <div className="flex items-center gap-4 text-slate-50">
-                <div className="h-10 w-10 rounded-[6px] bg-[#1A1A1A] border border-[#1F1F1F] flex items-center justify-center text-red-500">
-                   <Cpu className="h-5 w-5" />
-                </div>
-                <h2 className="text-2xl font-bold font-display uppercase tracking-tight">API & Scaling</h2>
-              </div>
-              <p className="text-neutral-400 leading-relaxed font-medium">
-                We reserve the right to throttle or limit API access for guilds that exceed disproportionate resource allocations. High-scale enterprise clusters are available for communities requiring dedicated neural shards.
-              </p>
-            </section>
-
-            <div className="pt-12 border-t border-[#1F1F1F]">
-              <p className="text-[10px] font-black uppercase text-neutral-600 tracking-[0.4em]">
-                March 2026 // Distributed via {process.env.NEXT_PUBLIC_BRAND_NAME || "MidVox"} Neural Cloud
-              </p>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
+    <LegalPage
+      eyebrow="Terms"
+      title="Terms of service"
+      intro={`These terms cover your use of the ${BRAND_NAME} bot and dashboard. By adding the bot or signing in, you agree to them.`}
+      updated="15 November 2026"
+      sections={[
+        {
+          title: "Using the service",
+          icon: FileCheck2,
+          body: [
+            `You may use ${BRAND_NAME} only in Discord servers where you have permission to add bots and change settings. You are responsible for the configuration you save and for making sure it follows Discord's Terms of Service and Community Guidelines.`,
+            "You must be old enough to use Discord under the laws that apply to you.",
+          ],
+        },
+        {
+          title: "Acceptable use",
+          icon: CircleAlert,
+          body: [
+            "Do not use the bot or dashboard to harass people, break the law, run raids, distribute malware, or evade Discord or MidVox access controls.",
+            "Do not attempt to access another server's settings, probe the API for vulnerabilities, scrape data at scale, or interfere with the service. We may rate-limit or block traffic that threatens availability.",
+          ],
+        },
+        {
+          title: "Dashboard access",
+          icon: UserCheck,
+          body: [
+            "Dashboard access is limited to accounts on the administrator allowlist and to people who can manage at least one server. Server pages are checked again against your Discord permissions.",
+            "Keep your Discord account secure. Actions taken through your signed-in session are treated as your actions. Bot-owner screens are restricted to the bot owner and must not be shared.",
+          ],
+        },
+        {
+          title: "Availability and changes",
+          icon: Wrench,
+          body: [
+            `The service is provided as is. Features depend on Discord's API and on our hosting, so we cannot promise uninterrupted availability. We may change, limit, or retire features when needed for security or maintenance.`,
+            "We may suspend access to protect the service, other servers, or other users. Where practical, we will explain why.",
+          ],
+        },
+        {
+          title: "Liability",
+          icon: Gauge,
+          body: [
+            `To the extent permitted by law, ${BRAND_NAME} is not liable for indirect or consequential loss, lost data, or lost revenue arising from use of the service. Keep your own record of important settings.`,
+            "Nothing in these terms limits rights you have under mandatory consumer law.",
+          ],
+        },
+        {
+          title: "Changes to these terms",
+          icon: ShieldCheck,
+          body: [
+            "We may update these terms as the product changes. The date at the top of this page shows when it was last revised. Continuing to use the service after a change means you accept the updated terms.",
+            `If you do not agree with a change, remove the bot from your server and stop using the dashboard. Questions can be raised in the Discord server where you use ${BRAND_NAME}.`,
+          ],
+        },
+      ]}
+    />
   );
 }
